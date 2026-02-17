@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🧬 Disease-Specific DNA Treatment</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 25px 30px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #ff6b6b, #ffd54f);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+    .btn-group {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 25px;
+      margin: 5px;
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 255, 255, 0.5);
+    }
+    .treatment-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    .treatment-box {
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+    .treatment-box h3 {
+      color: #ffd54f;
+      margin-bottom: 15px;
+      font-size: 1.3rem;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .form-group select, .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 14px;
+    }
+    .form-group textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    .form-group select option {
+      background: #2c5364;
+      color: #fff;
+    }
+    .btn-treat {
+      background: linear-gradient(90deg, #ff6b6b, #ff8a80);
+      color: #fff;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+      width: 100%;
+    }
+    .btn-treat:hover {
+      transform: translateY(-2px);
+    }
+    .results-section {
+      margin-top: 30px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .result-box {
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+    }
+    .result-box h4 {
+      color: #ffd54f;
+      margin-bottom: 10px;
+    }
+    .percentage {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #4caf50;
+    }
+    .sequence-comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .sequence-box {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 15px;
+      border-left: 4px solid #ff6b6b;
+    }
+    .sequence-box.modified {
+      border-left-color: #4caf50;
+    }
+    .sequence-box h4 {
+      color: #ffd54f;
+      margin-bottom: 10px;
+    }
+    .sequence-text {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: #fff;
+      word-break: break-all;
+      background: rgba(0,0,0,0.2);
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .changes-highlight {
+      background: rgba(255, 235, 59, 0.3);
+      color: #ffeb3b;
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top: 4px solid #4facfe;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    body.light-theme {
+      background: linear-gradient(135deg, #f5f7fa, #e0ecff);
+      color: #0f1a2b;
+    }
+    body.light-theme .container {
+      background: rgba(255,255,255,0.92);
+      color: #0f1a2b;
+      box-shadow: 0 8px 30px rgba(15,25,55,0.15);
+    }
+    body.light-theme header h1 {
+      color: #102a43;
+      background: none;
+    }
+    body.light-theme .btn {
+      color: #0f1a2b;
+      background: linear-gradient(90deg, #82c4ff, #7df2ff);
+    }
+    body.light-theme .treatment-box,
+    body.light-theme .results-section,
+    body.light-theme .result-box,
+    body.light-theme .sequence-box {
+      background: rgba(5,15,40,0.92);
+      color: #f6faff;
+      box-shadow: 0 12px 30px rgba(5,15,40,0.4);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    body.light-theme .sequence-box {
+      border-left-color: rgba(255,107,107,0.7);
+    }
+    body.light-theme .sequence-box.modified {
+      border-left-color: rgba(76,175,80,0.7);
+    }
+    body.light-theme .treatment-box h3,
+    body.light-theme .results-section h3,
+    body.light-theme .result-box h4,
+    body.light-theme .sequence-box h4 {
+      color: #0f1a2b;
+    }
+    .page-title {
+      color: aliceblue;
+    }
+    body.light-theme .page-title {
+      color: #0f1a2b;
+    }
+    body.light-theme .form-group label {
+      color: #0f1a2b;
+    }
+    body.light-theme .form-group select,
+    body.light-theme .form-group input,
+    body.light-theme .form-group textarea {
+      background: rgba(15,25,50,0.08);
+      color: #0f1a2b;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    body.light-theme .percentage {
+      color: #4dd4ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-nav">
+      <div class="top-nav__brand">Stacked GAN</div>
+      <nav class="top-nav__links">
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav__actions">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+          <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+          <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+          <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+    <header>
+      <h1 class="page-title">🩺👩🏻‍⚕️ Disease-Specific DNA Treatment</h1>
+      <div class="btn-group">
+        
+      </div>
+    </header>
+
+    <section class="page-intro">
+      <p>
+        Pick a disease focus, drop in a sequence (or let the generator craft one), and instantly see
+        predicted editing gains, risk trade-offs, and literature-backed treatment cues for chromosome 12 regions.
+      </p>
+      <div style="margin-top: 20px; padding: 16px; background: rgba(255,107,107,0.1); border-radius: 12px; border-left: 4px solid #ff6b6b;">
+        <h4 style="color: #ff6b6b; margin-bottom: 10px;">🧬 DNA and Disease: The Genetic Connection</h4>
+        <p style="line-height: 1.6; margin: 0 0 12px 0; font-size: 0.95rem;">
+          Many diseases have genetic origins, where mutations in DNA sequences disrupt normal cellular functions. 
+          <strong>Single nucleotide polymorphisms (SNPs)</strong> and <strong>insertions/deletions (indels)</strong> can alter 
+          protein structure, gene expression, or regulatory mechanisms. Understanding these genetic variants enables 
+          targeted therapeutic interventions. This tool simulates how synthetic DNA sequences might be modified to 
+          correct disease-causing mutations, providing insights into potential treatment strategies.
+        </p>
+        <p style="line-height: 1.6; margin: 0; font-size: 0.95rem;">
+          <strong>Gene therapy</strong> and <strong>CRISPR-based editing</strong> represent cutting-edge approaches to treating 
+          genetic diseases by directly modifying DNA sequences. While this tool provides educational simulations, 
+          actual clinical applications require extensive validation, regulatory approval, and ethical considerations. 
+          The treatment effectiveness metrics shown here are illustrative and should not be interpreted as medical advice.
+        </p>
+      </div>
+    </section>
+
+    <div class="treatment-grid">
+      <!-- Disease Selection & Input -->
+      <div class="treatment-box">
+        <h3>🔬 Disease Selection & DNA Input</h3>
+        <form id="treatmentForm">
+          <div class="form-group">
+            <label for="disease">Select Disease:</label>
+            <select id="disease" name="disease" required>
+              <option value="">Choose a disease...</option>
+              <option value="sickle_cell">Sickle Cell Anemia</option>
+              <option value="cystic_fibrosis">Cystic Fibrosis</option>
+              <option value="huntington">Huntington's Disease</option>
+              <option value="tay_sachs">Tay-Sachs Disease</option>
+              <option value="hemophilia">Hemophilia A</option>
+              <option value="duchenne">Duchenne Muscular Dystrophy</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="dnaSequence">Enter DNA Sequence (or leave blank for auto-generation):</label>
+            <textarea id="dnaSequence" name="dnaSequence" placeholder="ATGCGATCGATCGATCGATCGATCGATCG (30 nucleotides recommended)"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="treatmentIntensity">Treatment Intensity:</label>
+            <select id="treatmentIntensity" name="treatmentIntensity">
+              <option value="conservative">Conservative (20-40% improvement)</option>
+              <option value="moderate" selected>Moderate (40-70% improvement)</option>
+              <option value="aggressive">Aggressive (70-90% improvement)</option>
+            </select>
+          </div>
+          
+          <button type="submit" class="btn-treat">🧬 Analyze & Treat DNA</button>
+        </form>
+      </div>
+
+      <!-- Disease Information -->
+      <div class="treatment-box">
+        <h3>📋 Disease Information</h3>
+        <div id="diseaseInfo">
+          <p>Select a disease to view information about:</p>
+          <ul>
+            <li>Associated genetic mutations</li>
+            <li>Treatment approaches</li>
+            <li>Expected outcomes</li>
+            <li>Risk factors</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Analyzing DNA sequence and generating treatment...</p>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-section" id="results" style="display: none;">
+      <h3 style="color: #ffd54f; text-align: center;">🎯 Treatment Results</h3>
+      
+      <!-- Treatment Effectiveness -->
+      <div class="results-grid">
+        <div class="result-box">
+          <h4>Treatment Effectiveness</h4>
+          <div class="percentage" id="effectiveness">0%</div>
+          <p>Improvement in disease symptoms</p>
+        </div>
+        <div class="result-box">
+          <h4>Risk Reduction</h4>
+          <div class="percentage" id="riskReduction">0%</div>
+          <p>Reduction in disease risk</p>
+        </div>
+        <div class="result-box">
+          <h4>Side Effects Risk</h4>
+          <div class="percentage" id="sideEffects">0%</div>
+          <p>Risk of adverse effects</p>
+        </div>
+        <div class="result-box">
+          <h4>Overall Success Rate</h4>
+          <div class="percentage" id="successRate">0%</div>
+          <p>Treatment success probability</p>
+        </div>
+      </div>
+
+      <!-- Sequence Comparison -->
+      <div class="sequence-comparison">
+        <div class="sequence-box">
+          <h4>🔴 Original DNA Sequence</h4>
+          <div class="sequence-text" id="originalSequence"></div>
+        </div>
+        <div class="sequence-box modified">
+          <h4>🟢 Modified DNA Sequence</h4>
+          <div class="sequence-text" id="modifiedSequence"></div>
+        </div>
+      </div>
+
+      <!-- Treatment Details -->
+      <div class="treatment-box" style="margin-top: 20px;">
+        <h3>🔬 Treatment Analysis</h3>
+        <div id="treatmentDetails"></div>
+      </div>
+
+      <!-- Visualization Chart -->
+      <div class="treatment-box" style="margin-top: 20px;">
+        <h3>📊 Treatment Effectiveness Visualization</h3>
+        <div id="treatmentChart" style="height: 400px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Disease information database
+    const diseaseDatabase = {
+      sickle_cell: {
+        name: "Sickle Cell Anemia",
+        mutation: "HBB gene mutation (GAG → GTG)",
+        description: "A genetic blood disorder where red blood cells become sickle-shaped, causing pain and organ damage.",
+        treatment: "Gene therapy targeting the HBB gene to restore normal hemoglobin production.",
+        mutations: ["A", "T", "G", "C"],
+        targetPositions: [6, 7, 8, 12, 13, 14],
+        improvementRange: [60, 85]
+      },
+      cystic_fibrosis: {
+        name: "Cystic Fibrosis",
+        mutation: "CFTR gene deletion (F508del)",
+        description: "A genetic disorder affecting the lungs and digestive system due to defective chloride transport.",
+        treatment: "CFTR gene correction to restore proper ion channel function.",
+        mutations: ["A", "T", "G", "C"],
+        targetPositions: [9, 10, 11, 15, 16, 17],
+        improvementRange: [70, 90]
+      },
+      huntington: {
+        name: "Huntington's Disease",
+        mutation: "HTT gene CAG repeat expansion",
+        description: "A neurodegenerative disorder causing progressive motor and cognitive decline.",
+        treatment: "HTT gene silencing to reduce toxic protein accumulation.",
+        mutations: ["A", "T", "G", "C"],
+        targetPositions: [3, 4, 5, 18, 19, 20],
+        improvementRange: [50, 75]
+      },
+      tay_sachs: {
+        name: "Tay-Sachs Disease",
+        mutation: "HEXA gene mutations",
+        description: "A fatal genetic disorder affecting nerve cells in the brain and spinal cord.",
+        treatment: "HEXA gene restoration to prevent lipid accumulation.",
+        mutations: ["A", "T", "G", "C"],
+        targetPositions: [2, 3, 4, 21, 22, 23],
+        improvementRange: [40, 70]
+      },
+      hemophilia: {
+        name: "Hemophilia A",
+        mutation: "F8 gene mutations",
+        description: "A bleeding disorder where blood doesn't clot properly due to factor VIII deficiency.",
+        treatment: "F8 gene correction to restore clotting factor production.",
+        mutations: ["A", "T", "G", "C"],
+        targetPositions: [1, 2, 3, 24, 25, 26],
+        improvementRange: [80, 95]
+      },
+      duchenne: {
+        name: "Duchenne Muscular Dystrophy",
+        mutation: "DMD gene deletions",
+        description: "A muscle-wasting disease affecting skeletal and heart muscles.",
+        treatment: "DMD gene restoration to produce functional dystrophin protein.",
+        mutations: ["A", "T", "G", "C"],
+        targetPositions: [5, 6, 7, 27, 28, 29],
+        improvementRange: [45, 80]
+      }
+    };
+
+    // Update disease information when selected
+    document.getElementById('disease').addEventListener('change', function() {
+      const selectedDisease = this.value;
+      const diseaseInfo = document.getElementById('diseaseInfo');
+      
+      if (selectedDisease && diseaseDatabase[selectedDisease]) {
+        const disease = diseaseDatabase[selectedDisease];
+        diseaseInfo.innerHTML = `
+          <h4 style="color: #ffd54f;">${disease.name}</h4>
+          <p><strong>Mutation:</strong> ${disease.mutation}</p>
+          <p><strong>Description:</strong> ${disease.description}</p>
+          <p><strong>Treatment:</strong> ${disease.treatment}</p>
+          <p><strong>Expected Improvement:</strong> ${disease.improvementRange[0]}-${disease.improvementRange[1]}%</p>
+        `;
+      } else {
+        diseaseInfo.innerHTML = `
+          <p>Select a disease to view information about:</p>
+          <ul>
+            <li>Associated genetic mutations</li>
+            <li>Treatment approaches</li>
+            <li>Expected outcomes</li>
+            <li>Risk factors</li>
+          </ul>
+        `;
+      }
+    });
+
+    // Generate random DNA sequence
+    function generateRandomDNA(length = 30) {
+      const nucleotides = ['A', 'T', 'G', 'C'];
+      return Array.from({length}, () => nucleotides[Math.floor(Math.random() * nucleotides.length)]).join('');
+    }
+
+    // Highlight changes between sequences
+    function highlightChanges(original, modified) {
+      let highlighted = '';
+      for (let i = 0; i < Math.min(original.length, modified.length); i++) {
+        if (original[i] !== modified[i]) {
+          highlighted += `<span class="changes-highlight">${modified[i]}</span>`;
+        } else {
+          highlighted += modified[i];
+        }
+      }
+      return highlighted;
+    }
+
+    // Simulate DNA treatment
+    function simulateTreatment(dnaSequence, disease, intensity) {
+      const diseaseInfo = diseaseDatabase[disease];
+      const targetPositions = diseaseInfo.targetPositions;
+      const mutations = diseaseInfo.mutations;
+      
+      let modifiedSequence = dnaSequence.split('');
+      let changes = [];
+      
+      // Apply mutations based on intensity
+      const mutationCount = intensity === 'conservative' ? 2 : 
+                           intensity === 'moderate' ? 4 : 6;
+      
+      for (let i = 0; i < mutationCount && i < targetPositions.length; i++) {
+        const pos = targetPositions[i];
+        if (pos < modifiedSequence.length) {
+          const original = modifiedSequence[pos];
+          const newNucleotide = mutations[Math.floor(Math.random() * mutations.length)];
+          modifiedSequence[pos] = newNucleotide;
+          changes.push({position: pos, from: original, to: newNucleotide});
+        }
+      }
+      
+      return {
+        modifiedSequence: modifiedSequence.join(''),
+        changes: changes
+      };
+    }
+
+    // Calculate treatment effectiveness
+    function calculateEffectiveness(disease, intensity, changes) {
+      const diseaseInfo = diseaseDatabase[disease];
+      const baseRange = diseaseInfo.improvementRange;
+      
+      let effectiveness = baseRange[0] + Math.random() * (baseRange[1] - baseRange[0]);
+      
+      // Adjust based on intensity
+      if (intensity === 'conservative') effectiveness *= 0.8;
+      else if (intensity === 'aggressive') effectiveness *= 1.1;
+      
+      // Adjust based on number of changes
+      effectiveness += changes.length * 2;
+      
+      return Math.min(Math.round(effectiveness), 95);
+    }
+
+    // Handle form submission
+    document.getElementById('treatmentForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const disease = document.getElementById('disease').value;
+      const dnaSequence = document.getElementById('dnaSequence').value;
+      const intensity = document.getElementById('treatmentIntensity').value;
+      
+      if (!disease) {
+        alert('Please select a disease!');
+        return;
+      }
+      
+      // Show loading
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('results').style.display = 'none';
+      
+      // Simulate processing time
+      setTimeout(() => {
+        // Generate or use provided DNA sequence
+        const sequence = dnaSequence.trim() || generateRandomDNA();
+        
+        // Simulate treatment
+        const treatment = simulateTreatment(sequence, disease, intensity);
+        
+        // Calculate effectiveness
+        const effectiveness = calculateEffectiveness(disease, intensity, treatment.changes);
+        const riskReduction = Math.round(effectiveness * 0.8);
+        const sideEffects = Math.round((100 - effectiveness) * 0.3);
+        const successRate = Math.round(effectiveness * 0.9);
+        
+        // Update results
+        document.getElementById('effectiveness').textContent = effectiveness + '%';
+        document.getElementById('riskReduction').textContent = riskReduction + '%';
+        document.getElementById('sideEffects').textContent = sideEffects + '%';
+        document.getElementById('successRate').textContent = successRate + '%';
+        
+        // Update sequences
+        document.getElementById('originalSequence').textContent = sequence;
+        document.getElementById('modifiedSequence').innerHTML = highlightChanges(sequence, treatment.modifiedSequence);
+        
+        // Update treatment details
+        const diseaseInfo = diseaseDatabase[disease];
+        document.getElementById('treatmentDetails').innerHTML = `
+          <p><strong>Disease:</strong> ${diseaseInfo.name}</p>
+          <p><strong>Treatment Approach:</strong> ${diseaseInfo.treatment}</p>
+          <p><strong>Mutations Applied:</strong> ${treatment.changes.length}</p>
+          <p><strong>Changes Made:</strong></p>
+          <ul>
+            ${treatment.changes.map(change => 
+              `<li>Position ${change.position + 1}: ${change.from} → ${change.to}</li>`
+            ).join('')}
+          </ul>
+          <p><strong>Expected Outcome:</strong> ${effectiveness}% improvement in disease symptoms with ${riskReduction}% reduction in disease risk.</p>
+        `;
+        
+        // Create treatment chart
+        createTreatmentChart(diseaseInfo.name, effectiveness, riskReduction, sideEffects, successRate);
+        
+        // Hide loading and show results
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+      }, 2000);
+    });
+
+    // Create treatment visualization chart
+    // Create treatment visualization chart (Spline Graph)
+function createTreatmentChart(diseaseName, effectiveness, riskReduction, sideEffects, successRate) {
+  Highcharts.chart('treatmentChart', {
+    chart: {
+      type: 'spline',
+      backgroundColor: 'rgba(0,0,0,0)'
+    },
+    title: {
+      text: `${diseaseName} - Treatment Analysis`,
+      style: { color: '#fff', fontSize: '18px', fontWeight: 'bold' }
+    },
+    xAxis: {
+      categories: ['Effectiveness', 'Risk Reduction', 'Side Effects', 'Success Rate'],
+      labels: { style: { color: '#fff', fontWeight: 'bold' } },
+      lineColor: '#888',
+      tickColor: '#888'
+    },
+    yAxis: {
+      title: { text: 'Percentage (%)', style: { color: '#fff' } },
+      labels: { style: { color: '#fff' } },
+      gridLineColor: 'rgba(255,255,255,0.2)',
+      max: 100
+    },
+    tooltip: {
+      shared: true,
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      style: { color: '#fff' },
+      borderColor: '#00e5ff',
+      valueSuffix: '%'
+    },
+    plotOptions: {
+      spline: {
+        lineWidth: 3,
+        marker: {
+          enabled: true,
+          radius: 6,
+          symbol: 'circle',
+          fillColor: '#fff',
+          lineWidth: 2,
+          lineColor: '#00e5ff'
+        },
+        dataLabels: {
+          enabled: true,
+          format: '{y}%',
+          style: { color: '#fff', textOutline: 'none', fontWeight: 'bold' }
+        }
+      }
+    },
+    series: [{
+      name: 'Treatment Metrics',
+      color: '#00e5ff',
+      data: [
+        { name: 'Effectiveness', y: effectiveness },
+        { name: 'Risk Reduction', y: riskReduction },
+        { name: 'Side Effects', y: sideEffects },
+        { name: 'Success Rate', y: successRate }
+      ]
+    }],
+    legend: { enabled: false },
+    credits: { enabled: false }
+  });
+}
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>

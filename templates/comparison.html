@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 DNA Metrics Comparison</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+  <script src="https://code.highcharts.com/modules/heatmap.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 25px 30px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #6dd5ed, #2193b0);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+    .btn-metrics {
+      display: inline-block;
+      padding: 10px 22px;
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+    }
+    .btn-metrics:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 255, 255, 0.5);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 0.95rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    th, td { padding: 12px 10px; text-align: center; }
+    thead th {
+      background: linear-gradient(90deg, #43e97b, #38f9d7);
+      color: #0f2027;
+      font-weight: 600;
+    }
+    tbody td {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.12); }
+    tbody tr:hover td { background: rgba(255, 255, 255, 0.2); transition: 0.3s; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 25px;
+      margin-top: 30px;
+    }
+
+    .chart-box {
+      padding: 15px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.08);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
+    .chart-box h3 { text-align:center; color:#ffd54f; margin-bottom:15px; font-size:1.3rem; }
+
+    body.light-theme {
+      background: linear-gradient(135deg, #f5f7fa, #e0ecff);
+      color: #0f1a2b;
+    }
+    body.light-theme .container {
+      background: rgba(255,255,255,0.92);
+      color: #0f1a2b;
+      box-shadow: 0 8px 30px rgba(15,25,55,0.15);
+    }
+    body.light-theme header h1 {
+      color: #102a43;
+      background: none;
+    }
+    body.light-theme table {
+      box-shadow: 0 4px 20px rgba(15,25,55,0.1);
+    }
+    body.light-theme thead th {
+      background: linear-gradient(90deg, #82c4ff, #7df2ff);
+      color: #0f1a2b !important;
+    }
+    body.light-theme tbody td {
+      background: rgba(15, 25, 50, 0.05);
+      color: #0f1a2b !important;
+    }
+    body.light-theme tbody tr:nth-child(even) td {
+      background: rgba(15, 25, 50, 0.12);
+      color: #0f1a2b !important;
+    }
+    body.light-theme tbody tr:hover td {
+      background: rgba(15, 25, 50, 0.2);
+      color: #0f1a2b !important;
+    }
+    body.light-theme table th,
+    body.light-theme table td {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .chart-box {
+      background: rgba(255, 255, 255, 0.95);
+      color: #0f1a2b;
+      box-shadow: 0 12px 30px rgba(15,25,55,0.15);
+      border: 1px solid rgba(15,25,50,0.1);
+    }
+    body.light-theme .chart-box h3 {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .chart-box h3[style*="color"] {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .intro,
+    body.light-theme .page-intro {
+      background: rgba(15,25,50,0.06) !important;
+      color: #0f1a2b !important;
+    }
+    body.light-theme .intro p,
+    body.light-theme .page-intro p {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .intro h4,
+    body.light-theme .page-intro h4 {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .intro div[style*="background: rgba(255,213,79,0.1)"] {
+      background: rgba(15,25,50,0.08) !important;
+      border-left-color: #4facfe !important;
+    }
+    body.light-theme .intro div[style*="background: rgba(255,213,79,0.1)"] h4 {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .intro div[style*="background: rgba(255,213,79,0.1)"] p {
+      color: #0f1a2b !important;
+    }
+    body.light-theme .functional-metrics-box h3[style*="color:#ffd54f"] {
+      color: #0f1a2b !important;
+    }
+    .page-title {
+      color: aliceblue;
+    }
+    body.light-theme .page-title {
+      color: #0f1a2b;
+    }
+    body.light-theme .btn-metrics {
+      color: #0f1a2b;
+    }
+    body.light-theme .functional-metrics-box {
+      background: rgba(255,255,255,0.92);
+      color: #0f1a2b;
+    }
+    body.light-theme .functional-metrics-box h3,
+    body.light-theme .functional-metrics-box h3[style*="color"] {
+      color: #0f1a2b !important;
+    }
+    body.light-theme #metricsTable,
+    body.light-theme #metricsTable * {
+      color: #0f1a2b !important;
+    }
+    body.light-theme #metricsTable thead th {
+      color: #0f1a2b !important;
+    }
+    .kmer-label {
+      color: #fff;
+    }
+    body.light-theme .kmer-label {
+      color: #0f1a2b;
+    }
+    body.light-theme .tab-btn {
+      background: rgba(15,25,50,0.08);
+      color: #0f1a2b !important;
+      border-color: rgba(15,25,50,0.18);
+    }
+    body.light-theme .tab-btn:hover {
+      background: rgba(15,25,50,0.14);
+      color: #0f1a2b !important;
+    }
+    body.light-theme .tab-btn.active {
+      background: linear-gradient(90deg, #82c4ff, #7df2ff);
+      color: #0f1a2b !important;
+      border-color: transparent;
+      box-shadow: 0 8px 20px rgba(130,196,255,0.35);
+    }
+    body.light-theme .chart-desc {
+      color: #0f1a2b;
+    }
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0 8px;
+    }
+    .tab-btn {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover { 
+      background: rgba(255,255,255,0.14); 
+      color: #fff !important;
+    }
+    .tab-btn.active {
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: #04131b;
+      border-color: transparent;
+      box-shadow: 0 8px 20px rgba(79,172,254,0.35);
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .chart-desc {
+      margin: 6px 0 12px;
+      color: #cfe7ff;
+      font-size: 0.95rem;
+    }
+    body.light-theme .corr-card {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid rgba(15,25,50,0.15) !important;
+      box-shadow: 0 6px 18px rgba(15,25,55,0.15) !important;
+    }
+    body.light-theme #btnK2,
+    body.light-theme #btnK3 {
+      background: rgba(15,25,50,0.08) !important;
+      color: #0f1a2b !important;
+      border: 1px solid rgba(15,25,50,0.18) !important;
+    }
+    body.light-theme #btnK2:hover,
+    body.light-theme #btnK3:hover {
+      background: rgba(15,25,50,0.14) !important;
+    }
+    body.light-theme .chart-desc {
+      color: #0f1a2b !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container comparison-page">
+    <div class="top-nav">
+      <div class="top-nav__brand">Stacked GAN</div>
+      <nav class="top-nav__links">
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav__actions">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+          <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+          <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+          <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+    <header>
+      <h1 class="page-title">🔬 DNA Metrics Comparison</h1>
+    </header>
+
+    <section class="intro page-intro" style="margin-top:10px;">
+      <p style="margin:0;">
+        Compare Stacked SeqGAN against alternative generators using GC error, uniqueness, edit distance,
+        motif enrichment and multi-chart evidence. Use this dashboard when you need to justify why the stacked
+        hybrid beats WGAN, CTGAN, CGAN, CramerGAN, or DraGAN for chromosome 12 synthesis.
+      </p>
+      <div style="margin-top: 20px; padding: 16px; background: rgba(255,213,79,0.1); border-radius: 12px; border-left: 4px solid #ffd54f;">
+        <h4 style="color: #ffd54f; margin-bottom: 10px;">📈 Why Model Comparison Matters</h4>
+        <p style="line-height: 1.6; margin: 0; font-size: 0.95rem;">
+          Evaluating synthetic DNA generators requires multiple metrics because no single measure captures all aspects 
+          of sequence quality. <strong>GC Error</strong> measures how well the model maintains the target GC content. 
+          <strong>K-mer JS Divergence</strong> quantifies how closely synthetic sequences match real sequence composition patterns. 
+          <strong>Uniqueness</strong> ensures generated sequences are diverse and not repetitive. <strong>Edit Distance</strong> 
+          measures sequence variation. <strong>Motif Score</strong> validates that functional elements are preserved. 
+          StackedGAN's hierarchical architecture consistently outperforms single-stage GANs across these metrics, 
+          making it the preferred choice for high-quality synthetic DNA generation.
+        </p>
+      </div>
+    </section>
+
+    <section class="functional-metrics-box">
+      <h3 style="text-align:center; color:#ffd54f;">Metrics Overview</h3>
+      <table id="metricsTable">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>GC Error</th>
+            <th>K-mer JS Divergence</th>
+            <th>Uniqueness</th>
+            <th>Avg Edit Distance</th>
+            <th>Motif Score</th>
+            <th>GC Content (%)</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>Accuracy</th>
+            <th>F1 Score</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <style>
+      /* Scope sizing fixes to comparison page only */
+      .comparison-page { overflow-x: visible; }
+      .container.comparison-page { max-width: 1400px; margin: 0 auto; }
+      .comparison-page .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+        gap: 18px;
+        align-items: stretch;
+        justify-items: stretch;
+        margin: 24px auto;
+        max-width: 1200px;
+      }
+      .comparison-page .chart-box {
+        display: flex;
+        flex-direction: column;
+        min-height: 520px;
+        max-height: none;
+        width: auto;
+        padding-bottom: 10px;
+        overflow: visible;
+        position: relative;
+        z-index: 1;
+      }
+      .comparison-page .chart-box h3 {
+        margin: 0 0 10px 0;
+        padding: 6px 0;
+        text-align: center;
+        min-height: 28px;
+      }
+      .comparison-page .chart-box > div[id] {
+        flex: 1 1 auto;
+        min-height: 0; /* allows flex child to shrink */
+      }
+      /* Ensure inner Highcharts containers fill available height */
+      .comparison-page .chart-box > div[id$="Chart"],
+      .comparison-page #radarChart {
+        height: 100% !important;
+        width: 100% !important;
+      }
+      .comparison-page .chart-box .highcharts-container,
+      .comparison-page .chart-box .highcharts-root,
+      .comparison-page .chart-box svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+      }
+      /* Specific heights for variety where needed */
+      .comparison-page #radarChart { min-height: 540px; }
+      @media (max-width: 768px) {
+        .comparison-page .charts-grid { grid-template-columns: 1fr; }
+        .comparison-page .chart-box { min-height: 420px; max-height: 560px; }
+      }
+    </style>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="precision">Precision & Recall</button>
+      <button class="tab-btn" data-tab="distribution">Distributions</button>
+      <button class="tab-btn" data-tab="embedding">Embeddings</button>
+      <button class="tab-btn" data-tab="correlation">Correlations</button>
+      <button class="tab-btn" data-tab="runtime">Runtime Metrics</button>
+      <button class="tab-btn" data-tab="threeD">3D View</button>
+    </div>
+
+    <div id="tab-overview" class="tab-content active">
+      <p class="chart-desc">Core quality metrics side-by-side plus an overall radar view.</p>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>GC Error (Lower is Better)</h3>
+          <div id="gcChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>K-mer JS Divergence (Lower is Better)</h3>
+          <div id="kmerChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>Uniqueness (Higher is Better)</h3>
+          <div id="uniChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>Average Edit Distance (Lower is Better)</h3>
+          <div id="editChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>Motif Score Comparison</h3>
+          <div id="motifChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box" style="overflow:hidden;">
+          <h3>Overall Performance Radar</h3>
+          <div id="radarChart" style="height:420px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-precision" class="tab-content">
+      <p class="chart-desc">Reliability view: higher precision means fewer off-target sequences; higher recall, accuracy and F1 mean closer match to real distribution.</p>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>Precision</h3>
+          <div id="precisionChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>Recall</h3>
+          <div id="recallChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>Accuracy</h3>
+          <div id="accuracyChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>F1 Score</h3>
+          <div id="f1Chart" style="height:300px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-distribution" class="tab-content">
+      <p class="chart-desc">Distribution checks: GC spread per model and per-sequence variability.</p>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>GC Content Distribution</h3>
+          <div id="gcDistributionChart" style="height:300px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>GC% Distribution (Boxplot)</h3>
+          <div id="gcBoxplot" style="height:340px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-embedding" class="tab-content">
+      <p class="chart-desc">2D embedding of sequence k-mer vectors to see clustering and separation across models.</p>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>Sequence Embedding (PCA 2D)</h3>
+          <div id="embeddingScatter" style="height:360px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-correlation" class="tab-content">
+      <p class="chart-desc">Correlation heatmaps across k-mer features; switch between 2-mer and 3-mer views to inspect compositional similarity.</p>
+      <div class="chart-box" style="grid-column: 1 / -1; width:100%; height:auto;">
+        <h3>Feature Correlation Heatmaps</h3>
+        <div id="corrToolbar" style="display:flex; gap:12px; align-items:center; justify-content:flex-start; margin:6px 0 12px 6px;">
+          <span class="kmer-label" style="font-weight:600;">k-mer:</span>
+          <button id="btnK2" style="padding:6px 10px; border-radius:8px;">2-mer</button>
+          <button id="btnK3" style="padding:6px 10px; border-radius:8px;">3-mer</button>
+        </div>
+        <div id="corrGrid" style="display:grid; grid-template-columns: repeat(2, minmax(620px, 1fr)); gap:12px; width:100%; max-width:1700px; margin: 0 auto;">
+          <div class="corr-card" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.25); border-radius:12px; padding:16px 16px 40px 16px; overflow:hidden; height: 100%;">
+            <div id="corrOriginal" style="height:100%; width:100%;"></div>
+          </div>
+          <div class="corr-card" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.25); border-radius:12px; padding:16px 16px 40px 16px; overflow:hidden; height: 100%;">
+            <div id="corrStacked" style="height:100%; width:100%;"></div>
+          </div>
+          <div class="corr-card" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.25); border-radius:12px; padding:16px 16px 40px 16px; overflow:hidden; height: 100%;">
+            <div id="corrCTGAN" style="height:100%; width:100%;"></div>
+          </div>
+          <div class="corr-card" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 6px 18px rgba(0,0,0,0.25); border-radius:12px; padding:16px 16px 40px 16px; overflow:hidden; height: 100%;">
+            <div id="corrWGAN" style="height:100%; width:100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-runtime" class="tab-content">
+      <p class="chart-desc">Operational metrics derived from logs: epoch time, CPU/RAM, GPU memory, and generation latency.</p>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>Epoch Duration</h3>
+          <div style="padding:8px;">
+            <img src="{{ url_for('static', filename='metrics/epoch_time.png') }}" alt="Epoch time" style="width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,0.1); border-radius:12px;">
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>CPU / RAM Utilization</h3>
+          <div style="padding:8px;">
+            <img src="{{ url_for('static', filename='metrics/cpu_ram.png') }}" alt="CPU RAM utilization" style="width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,0.1); border-radius:12px;">
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>GPU Memory Allocation</h3>
+          <div style="padding:8px;">
+            <img src="{{ url_for('static', filename='metrics/gpu_alloc.png') }}" alt="GPU allocation" style="width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,0.1); border-radius:12px;">
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>Generation Time per Run</h3>
+          <div style="padding:8px;">
+            <img src="{{ url_for('static', filename='metrics/gen_times.png') }}" alt="Generation times" style="width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,0.1); border-radius:12px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-threeD" class="tab-content">
+      <p class="chart-desc">
+        Interactive 3D views across training runs: rotate, zoom, and hover to inspect loss and GPU/time profiles.
+      </p>
+      <div class="charts-grid">
+        <div class="chart-box">
+          <h3>3D Metrics Cube (Table Metrics in 3D)</h3>
+          <div id="metrics3DChart" style="height:420px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>3D Loss Landscape (Epoch vs D/G)</h3>
+          <div id="losses3DChart" style="height:420px;"></div>
+        </div>
+        <div class="chart-box">
+          <h3>3D Loss Landscape (Static View)</h3>
+          <div style="padding:8px;">
+            <img src="{{ url_for('static', filename='metrics/losses_3d.png') }}" alt="3D Loss" style="width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,0.15); border-radius:12px;">
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>3D GPU vs Time (Static View)</h3>
+          <div style="padding:8px;">
+            <img src="{{ url_for('static', filename='metrics/gpu_time_3d.png') }}" alt="3D GPU vs Time" style="width:100%; height:100%; object-fit:contain; background:rgba(0,0,0,0.15); border-radius:12px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Store chart instances for theme updates
+    const chartInstances = {};
+    let currentMetrics = null;
+    let currentLabels = null;
+    let currentColorMap = null;
+
+    // Get current theme-aware Highcharts options
+    function getHighchartsTheme() {
+      const isLight = document.body.classList.contains('light-theme');
+      if (isLight) {
+        return {
+          chart: { backgroundColor: 'rgba(0,0,0,0)' },
+          title: { style: { color: '#0f1a2b', fontWeight: 'bold' } },
+          xAxis: { 
+            labels: { style: { color: '#0f1a2b' } }, 
+            gridLineColor: 'rgba(15,25,50,0.15)',
+            title: { style: { color: '#0f1a2b' } }
+          },
+          yAxis: { 
+            labels: { style: { color: '#0f1a2b' } }, 
+            gridLineColor: 'rgba(15,25,50,0.15)', 
+            title: { style: { color: '#0f1a2b' } } 
+          },
+          legend: { itemStyle: { color: '#0f1a2b' } },
+          credits: { enabled: false }
+        };
+      } else {
+        return {
+          chart: { backgroundColor: 'rgba(0,0,0,0)' },
+          title: { style: { color: '#ffd54f', fontWeight: 'bold' } },
+          xAxis: { 
+            labels: { style: { color: '#e6f3ff' } }, 
+            gridLineColor: 'rgba(255,255,255,0.08)',
+            title: { style: { color: '#e6f3ff' } }
+          },
+          yAxis: { 
+            labels: { style: { color: '#e6f3ff' } }, 
+            gridLineColor: 'rgba(255,255,255,0.08)', 
+            title: { style: { color: '#e6f3ff' } } 
+          },
+          legend: { itemStyle: { color: '#e6f3ff' } },
+          credits: { enabled: false }
+        };
+      }
+    }
+
+    // Store chart recreation functions
+    let chartRecreateFunctions = {};
+    let currentK = 3; // For correlation heatmaps
+    let metrics3DRotationTimer = null; // For rotating 3D metrics cube
+
+    // Apply theme to all charts
+    function applyChartTheme() {
+      const theme = getHighchartsTheme();
+      Highcharts.setOptions(theme);
+      
+      // Update all existing charts
+      Object.keys(chartInstances).forEach(chartId => {
+        if (chartInstances[chartId]) {
+          try {
+            const chart = chartInstances[chartId];
+            // Update chart with new theme
+            chart.update(theme, true);
+          } catch(e) {
+            console.warn(`Failed to update chart ${chartId}:`, e);
+            // If update fails, try to recreate
+            if (chartRecreateFunctions[chartId]) {
+              setTimeout(() => chartRecreateFunctions[chartId](), 50);
+            }
+          }
+        }
+      });
+      
+      // Recreate charts that need full recreation
+      if (currentMetrics && currentLabels && currentColorMap) {
+        setTimeout(() => {
+          // Call all stored recreation functions
+          Object.values(chartRecreateFunctions).forEach(fn => {
+            try { fn(); } catch(e) { console.warn('Chart recreation error:', e); }
+          });
+        }, 150);
+      }
+    }
+
+    // Initialize theme
+    Highcharts.setOptions(getHighchartsTheme());
+    
+    // Listen for theme changes
+    const themeObserver = new MutationObserver(() => {
+      applyChartTheme();
+    });
+    themeObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    async function loadMetrics() {
+      try {
+        const res = await fetch("/metrics_json");
+        const metrics = await res.json();
+        currentMetrics = metrics;
+
+        // Populate table
+        const tbody = document.querySelector("#metricsTable tbody");
+        tbody.innerHTML = "";
+        for (const model in metrics) {
+          const data = metrics[model];
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${model}</td>
+            <td>${data.GC_error.toFixed(3)}</td>
+            <td>${data.kmer_JS.toFixed(3)}</td>
+            <td>${data.Uniqueness.toFixed(3)}</td>
+            <td>${data.EditDist.toFixed(3)}</td>
+            <td>${data.MotifScore.toFixed(3)}</td>
+            <td>${(data.GC_content * 100).toFixed(1)}%</td>
+            <td>${(data.Precision || 0).toFixed(3)}</td>
+            <td>${(data.Recall || 0).toFixed(3)}</td>
+            <td>${(data.Accuracy || data.Precision || 0).toFixed(3)}</td>
+            <td>${(data.F1 || 0).toFixed(3)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        const labels = Object.keys(metrics);
+        currentLabels = labels;
+        const colorMap = { 
+          "StackedGAN": "#ff6b6b",
+          "WGAN": "#3498db", 
+          "CTGAN": "#2ecc71",
+          "CGAN": "#f39c12",
+          "CramerGAN": "#9b59b6",
+          "DraGAN": "#e74c3c"
+        };
+        currentColorMap = colorMap;
+
+        function createGroupedBar(id, key, labelText) {
+          const dataVals = labels.map(m => metrics[m][key]);
+          const colors = labels.map(m => colorMap[m] || "#3498db");
+          const isLight = document.body.classList.contains('light-theme');
+          const textColor = isLight ? '#0f1a2b' : '#fff';
+
+          // Vary chart types per metric to reduce monotony
+          const chartTypeById = {
+            'gcChart': 'column',      // categorical columns
+            'kmerChart': 'area',      // smooth fill
+            'uniChart': 'bar',        // horizontal bars
+            'editChart': 'line',      // simple line
+            'motifChart': 'area'      // filled area
+          };
+          const chosenType = chartTypeById[id] || 'column';
+
+          const chart = Highcharts.chart(id, {
+            chart: { type: chosenType, backgroundColor: 'rgba(0,0,0,0)' },
+            title: { text: null },
+            xAxis: { categories: labels, labels: { style: { color: textColor, fontWeight: 'bold' } } },
+            yAxis: { title: { text: labelText, style:{color:textColor} }, labels: { style:{color:textColor} }, min: 0 },
+            legend: { enabled: false },
+            tooltip: { 
+              pointFormat: '<b>{point.y:.3f}</b>',
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            plotOptions: { 
+              column: { colorByPoint: true, colors: colors, dataLabels: { enabled: true, style:{color:textColor, fontWeight:'bold'} } },
+              bar:    { colorByPoint: true, colors: colors, dataLabels: { enabled: true, style:{color:textColor, fontWeight:'bold'} } },
+              area:   { color: '#4facfe', fillOpacity: 0.3, marker:{ enabled:true, radius:4 } },
+              line:   { color: '#f093fb', lineWidth: 3, marker:{ enabled:true, radius:4 } }
+            },
+            series: [{ name: labelText, data: dataVals }]
+          });
+          chartInstances[id] = chart;
+          // Store recreation function
+          chartRecreateFunctions[id] = () => createGroupedBar(id, key, labelText);
+        }
+
+        function createPrecisionRecallCharts() {
+          // Prepare data
+          const precisionData = labels.map(m => (metrics[m].Precision || 0));
+          const recallData = labels.map(m => (metrics[m].Recall || 0));
+          const accuracyData = labels.map(m => (metrics[m].Accuracy || metrics[m].Precision || 0));
+          const f1Data = labels.map(m => (metrics[m].F1 || 0));
+          const isLight = document.body.classList.contains('light-theme');
+          const textColor = isLight ? '#0f1a2b' : '#fff';
+
+          // Precision Chart - Scatter
+          const precisionChart = Highcharts.chart('precisionChart', {
+            chart: { 
+              type: 'scatter', 
+              backgroundColor: 'rgba(0,0,0,0)',
+              height: 300
+            },
+            title: { text: null },
+            xAxis: { 
+              categories: labels, 
+              labels: { style: { color: textColor, fontWeight: 'bold' } },
+              title: { text: 'Models', style: { color: textColor } }
+            },
+            yAxis: { 
+              title: { text: 'Precision (0-1)', style: { color: textColor } },
+              labels: { style: { color: textColor } },
+              min: 0,
+              max: 1
+            },
+            legend: { enabled: false },
+            tooltip: {
+              formatter: function() {
+                return '<b>' + this.x + '</b><br>' +
+                       'Precision: <b>' + this.y.toFixed(3) + '</b>';
+              },
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            plotOptions: {
+              scatter: {
+                marker: {
+                  enabled: true,
+                  radius: 7,
+                  symbol: 'circle',
+                  fillColor: '#4facfe'
+                }
+              },
+              series: {
+                lineWidth: 0
+              }
+            },
+            series: [{
+              name: 'Precision',
+              data: precisionData.map((y, i) => ({ x: i, y, name: labels[i] })),
+              color: '#4facfe'
+            }]
+          });
+          chartInstances['precisionChart'] = precisionChart;
+
+          // Recall Chart - Spline
+          const recallChart = Highcharts.chart('recallChart', {
+            chart: { 
+              type: 'spline', 
+              backgroundColor: 'rgba(0,0,0,0)',
+              height: 300
+            },
+            title: { text: null },
+            xAxis: { 
+              categories: labels, 
+              labels: { style: { color: textColor, fontWeight: 'bold' } },
+              title: { text: 'Models', style: { color: textColor } }
+            },
+            yAxis: { 
+              title: { text: 'Recall (0-1)', style: { color: textColor } },
+              labels: { style: { color: textColor } },
+              min: 0,
+              max: 1
+            },
+            legend: { enabled: false },
+            tooltip: {
+              formatter: function() {
+                return '<b>' + this.x + '</b><br>' +
+                       'Recall: <b>' + this.y.toFixed(3) + '</b>';
+              },
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            plotOptions: {
+              spline: {
+                marker: {
+                  enabled: true,
+                  radius: 6,
+                  fillColor: '#f093fb'
+                },
+                lineWidth: 3,
+                color: '#f093fb'
+              }
+            },
+            series: [{
+              name: 'Recall',
+              data: recallData,
+              color: '#f093fb'
+            }]
+          });
+          chartInstances['recallChart'] = recallChart;
+
+          // Accuracy Chart - Column
+          const accuracyChart = Highcharts.chart('accuracyChart', {
+            chart: {
+              type: 'column',
+              backgroundColor: 'rgba(0,0,0,0)',
+              height: 300
+            },
+            title: { text: null },
+            xAxis: {
+              categories: labels,
+              labels: { style: { color: textColor, fontWeight: 'bold' } },
+              title: { text: 'Models', style: { color: textColor } }
+            },
+            yAxis: {
+              title: { text: 'Accuracy (0-1)', style: { color: textColor } },
+              labels: { style: { color: textColor } },
+              min: 0,
+              max: 1
+            },
+            legend: { enabled: false },
+            tooltip: {
+              formatter: function() {
+                return '<b>' + this.x + '</b><br>' +
+                       'Accuracy: <b>' + this.y.toFixed(3) + '</b>';
+              },
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            plotOptions: {
+              column: {
+                colorByPoint: true,
+                dataLabels: {
+                  enabled: true,
+                  style: { color: textColor, fontWeight: 'bold' },
+                  format: '{y:.3f}'
+                }
+              }
+            },
+            series: [{
+              name: 'Accuracy',
+              data: accuracyData
+            }]
+          });
+          chartInstances['accuracyChart'] = accuracyChart;
+
+          // F1 Chart - Area
+          const f1Chart = Highcharts.chart('f1Chart', {
+            chart: {
+              type: 'area',
+              backgroundColor: 'rgba(0,0,0,0)',
+              height: 300
+            },
+            title: { text: null },
+            xAxis: {
+              categories: labels,
+              labels: { style: { color: textColor, fontWeight: 'bold' } },
+              title: { text: 'Models', style: { color: textColor } }
+            },
+            yAxis: {
+              title: { text: 'F1 Score (0-1)', style: { color: textColor } },
+              labels: { style: { color: textColor } },
+              min: 0,
+              max: 1
+            },
+            legend: { enabled: false },
+            tooltip: {
+              formatter: function() {
+                return '<b>' + this.x + '</b><br>' +
+                       'F1: <b>' + this.y.toFixed(3) + '</b>';
+              },
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            plotOptions: {
+              area: {
+                marker: {
+                  enabled: true,
+                  radius: 6,
+                  fillColor: '#50e3c2'
+                },
+                lineWidth: 3,
+                color: '#50e3c2',
+                fillOpacity: 0.25
+              }
+            },
+            series: [{
+              name: 'F1',
+              data: f1Data,
+              color: '#50e3c2'
+            }]
+          });
+          chartInstances['f1Chart'] = f1Chart;
+
+          // Store recreation functions
+          chartRecreateFunctions['precisionChart'] = createPrecisionRecallCharts;
+          chartRecreateFunctions['recallChart'] = createPrecisionRecallCharts;
+          chartRecreateFunctions['accuracyChart'] = createPrecisionRecallCharts;
+          chartRecreateFunctions['f1Chart'] = createPrecisionRecallCharts;
+        }
+
+        // Individual metrics
+        createGroupedBar('gcChart', 'GC_error', 'GC Error');
+        createGroupedBar('kmerChart', 'kmer_JS', 'K-mer JS Divergence');
+        createGroupedBar('uniChart', 'Uniqueness', 'Uniqueness');
+        createGroupedBar('editChart', 'EditDist', 'Average Edit Distance');
+        createGroupedBar('motifChart', 'MotifScore', 'Motif Score');
+
+        // Precision and Recall Charts
+        createPrecisionRecallCharts();
+
+        // GC Content Distribution
+        createGCDistributionChart();
+
+        // GC Content Distribution Chart
+        function createGCDistributionChart() {
+          const gcData = labels.map(model => ({
+            name: model,
+            y: metrics[model].GC_content * 100,
+            color: colorMap[model] || '#3498db'
+          }));
+          const isLight = document.body.classList.contains('light-theme');
+          const textColor = isLight ? '#0f1a2b' : '#fff';
+
+          const chart = Highcharts.chart('gcDistributionChart', {
+            chart: { type: 'column', backgroundColor: 'rgba(0,0,0,0)' },
+            title: { text: null },
+            xAxis: { 
+              categories: labels,
+              labels: { style: { color: textColor, fontWeight: 'bold' } }
+            },
+            yAxis: {
+              title: { text: 'GC Content (%)', style: { color: textColor } },
+              labels: { style: { color: textColor } },
+              max: 100
+            },
+            plotOptions: {
+              column: {
+                colorByPoint: true,
+                dataLabels: {
+                  enabled: true,
+                  format: '{y:.1f}%',
+                  style: { color: textColor, fontWeight: 'bold' }
+                }
+              }
+            },
+            tooltip: {
+              pointFormat: '<b>{point.y:.1f}%</b> GC Content',
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            series: [{
+              name: 'GC Content',
+              data: gcData
+            }]
+          });
+          chartInstances['gcDistributionChart'] = chart;
+          chartRecreateFunctions['gcDistributionChart'] = createGCDistributionChart;
+        }
+
+
+        // Radar chart for overall
+        createRadarChart();
+
+        // Radar Chart Function
+        function createRadarChart() {
+          const radarSeries = Object.keys(metrics).map(m => ({
+            name: m,
+            data: [
+              metrics[m].GC_error, 
+              metrics[m].kmer_JS, 
+              metrics[m].Uniqueness, 
+              metrics[m].EditDist,
+              metrics[m].MotifScore,
+              metrics[m].GC_content
+            ],
+            color: colorMap[m] || '#3498db'
+          }));
+          const isLight = document.body.classList.contains('light-theme');
+          const textColor = isLight ? '#0f1a2b' : '#fff';
+          const gridLineColor = isLight ? 'rgba(15,25,50,0.2)' : 'rgba(255,255,255,0.2)';
+          const legendBg = isLight ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.3)';
+
+          const chart = Highcharts.chart('radarChart', {
+            chart: { polar: true, type: 'line', backgroundColor:'rgba(0,0,0,0)' },
+            title: { text: null },
+            pane: { size: '80%' },
+            xAxis: {
+              categories: ['GC Error','K-mer JS','Uniqueness','Avg Edit Distance','Motif Score','GC Content'],
+              tickmarkPlacement: 'on',
+              lineWidth: 0,
+              labels: { style: { color:textColor, fontWeight:'bold', fontSize: '11px' } }
+            },
+            yAxis: {
+              gridLineInterpolation: 'polygon',
+              lineWidth: 0,
+              min: 0,
+              max: 1,
+              labels: { style: { color:textColor, fontSize: '10px' } },
+              gridLineColor: gridLineColor
+            },
+            plotOptions: {
+              line: {
+                marker: {
+                  enabled: true,
+                  radius: 4,
+                  symbol: 'circle'
+                },
+                lineWidth: 3
+              }
+            },
+            tooltip: { 
+              shared: true, 
+              pointFormat: '<span style="color:{series.color}">{series.name}: <b>{point.y:.3f}</b><br/>',
+              backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+              style: { color: textColor }
+            },
+            legend: { 
+              align: 'center', 
+              verticalAlign: 'bottom', 
+              itemStyle: { color:textColor, fontWeight:'bold', fontSize: '12px' },
+              backgroundColor: legendBg,
+              borderRadius: 8,
+              padding: 10
+            },
+            series: radarSeries
+          });
+          chartInstances['radarChart'] = chart;
+          chartRecreateFunctions['radarChart'] = createRadarChart;
+        }
+
+      } catch(err) {
+        console.error("Failed to load metrics:", err);
+      }
+    }
+
+    loadMetrics();
+
+    // Additional visualizations from new endpoints
+    async function loadGCBoxplot() {
+      const res = await fetch('/gc_distribution_data');
+      const dist = await res.json();
+      const labels = Object.keys(dist);
+      const isLight = document.body.classList.contains('light-theme');
+      const textColor = isLight ? '#0f1a2b' : '#fff';
+      // Convert to Highcharts boxplot format: [low, q1, median, q3, high]
+      function fiveNum(arr) {
+        const a = arr.slice().sort((x,y)=>x-y); const n=a.length;
+        const q = (p)=>{ const pos=(n-1)*p; const base=Math.floor(pos); const rest=pos-base; return rest? a[base]+rest*(a[base+1]-a[base]) : a[base]; };
+        const low=a[0], high=a[n-1], q1=q(0.25), med=q(0.5), q3=q(0.75); return [low,q1,med,q3,high];
+      }
+      const seriesData = labels.map(l => fiveNum(dist[l]));
+      const chart = Highcharts.chart('gcBoxplot', {
+        chart: { type: 'boxplot', backgroundColor: 'rgba(0,0,0,0)' },
+        title: { text: null },
+        xAxis: { categories: labels, labels:{ style:{ color:textColor } } },
+        yAxis: { title: { text: 'GC %' , style:{ color:textColor } }, labels:{ style:{ color:textColor } } },
+        legend: { enabled: false },
+        tooltip: {
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+          style: { color: textColor }
+        },
+        series: [{ name: 'GC%', data: seriesData }]
+      });
+      chartInstances['gcBoxplot'] = chart;
+      chartRecreateFunctions['gcBoxplot'] = loadGCBoxplot;
+    }
+
+    async function loadEmbeddingScatter() {
+      const res = await fetch('/embedding_pca_data');
+      const payload = await res.json();
+      const points = payload.points;
+      const groups = {};
+      points.forEach(p => { (groups[p.label] = groups[p.label] || []).push([p.x, p.y]); });
+      const colorMap = { 'StackedGAN':'#ff6b6b','WGAN':'#3498db','CTGAN':'#2ecc71','CGAN':'#f39c12','CramerGAN':'#9b59b6','DraGAN':'#e74c3c' };
+      const series = Object.keys(groups).map(k => ({ name:k, data: groups[k], color: colorMap[k] || undefined }));
+      const isLight = document.body.classList.contains('light-theme');
+      const textColor = isLight ? '#0f1a2b' : '#fff';
+      const gridLineColor = isLight ? 'rgba(15,25,50,0.15)' : 'rgba(255,255,255,0.08)';
+      const chart = Highcharts.chart('embeddingScatter', {
+        chart: { type: 'scatter', zoomType: 'xy', backgroundColor:'rgba(0,0,0,0)' },
+        title: { text: null },
+        xAxis: { 
+          title: { text: 'PC1', style:{ color:textColor } }, 
+          labels: { 
+            enabled: true,
+            style:{ color:textColor } 
+          },
+          gridLineColor: gridLineColor,
+          gridLineWidth: 1,
+          lineColor: gridLineColor,
+          tickColor: gridLineColor
+        },
+        yAxis: { 
+          title: { text: 'PC2', style:{ color:textColor } }, 
+          labels: { 
+            enabled: true,
+            style:{ color:textColor } 
+          },
+          gridLineColor: gridLineColor,
+          gridLineWidth: 1,
+          lineColor: gridLineColor,
+          tickColor: gridLineColor
+        },
+        legend: { itemStyle:{ color:textColor } },
+        tooltip: {
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+          style: { color: textColor }
+        },
+        plotOptions: { scatter: { marker: { radius: 3 } } },
+        series
+      });
+      chartInstances['embeddingScatter'] = chart;
+      chartRecreateFunctions['embeddingScatter'] = loadEmbeddingScatter;
+    }
+
+    loadGCBoxplot();
+    loadEmbeddingScatter();
+
+    // -----------------------------
+    // 3D TRAINING METRIC VISUALS
+    // -----------------------------
+
+    async function loadLosses3DCharts() {
+      try {
+        const res = await fetch('/losses_3d_data');
+        const payload = await res.json();
+        const seriesData = payload.series || [];
+        if (!seriesData.length) {
+          return;
+        }
+        const isLight = document.body.classList.contains('light-theme');
+        const textColor = isLight ? '#0f1a2b' : '#fff';
+        const gridLineColor = isLight ? 'rgba(15,25,50,0.15)' : 'rgba(255,255,255,0.08)';
+
+        // For the main loss 3D chart, use D vs G vs Epoch instead of epoch on X only.
+        // Re-map points to [D loss, G loss, Epoch]
+        // Full data per run (D loss, G loss, Epoch)
+        const fullSeries = seriesData.map(s => ({
+          name: s.name,
+          fullData: (s.points || []).map(pt => [pt[1], pt[2], pt[0]])
+        }));
+
+        // Start with empty series; we'll stream points in for a "running" animation
+        const scatterSeries = fullSeries.map(s => ({
+          name: s.name,
+          data: []
+        }));
+
+        const lossChart = Highcharts.chart('losses3DChart', {
+          chart: {
+            type: 'scatter3d',
+            backgroundColor: 'rgba(0,0,0,0)',
+            options3d: {
+              enabled: true,
+              alpha: 15,
+              beta: 30,
+              depth: 400,
+              viewDistance: 25
+            }
+          },
+          title: { text: null },
+          legend: { itemStyle: { color: textColor } },
+          xAxis: {
+            title: { text: 'D loss', style: { color: textColor } },
+            labels: { style: { color: textColor } },
+            gridLineColor: gridLineColor
+          },
+          yAxis: {
+            title: { text: 'G loss', style: { color: textColor } },
+            labels: { style: { color: textColor } },
+            gridLineColor: gridLineColor
+          },
+          zAxis: {
+            title: { text: 'Epoch', style: { color: textColor } },
+            labels: { style: { color: textColor } }
+          },
+          tooltip: {
+            backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+            style: { color: textColor },
+            pointFormatter: function () {
+              const p = this;
+              return `<span style="color:${p.series.color}">\u25CF</span> ` +
+                     `<b>${p.series.name}</b><br/>` +
+                     `D loss: <b>${p.x.toFixed(4)}</b><br/>` +
+                     `G loss: <b>${p.y.toFixed(4)}</b><br/>` +
+                     `Epoch: <b>${p.z}</b>`;
+            }
+          },
+          plotOptions: {
+            scatter3d: {
+              marker: {
+                radius: 3,
+                symbol: 'circle'
+              }
+            },
+            series: {
+              animation: { duration: 600 }
+            }
+          },
+          series: scatterSeries
+        });
+
+        // Animated "running" scatterplot:
+        // progressively reveal points along training epochs without rotating the camera.
+        const maxLen = Math.max(...fullSeries.map(s => s.fullData.length));
+        let step = 0;
+        const stepSize = 1;      // points to add per tick per run
+        const intervalMs = 120;  // speed of the animation
+
+        const timer = setInterval(() => {
+          if (!lossChart) {
+            clearInterval(timer);
+            return;
+          }
+          let anyAdded = false;
+          fullSeries.forEach((s, si) => {
+            const target = s.fullData;
+            const series = lossChart.series[si];
+            if (!series || !target || !target.length) return;
+
+            const start = step * stepSize;
+            const end = Math.min(start + stepSize, target.length);
+            for (let i = start; i < end; i++) {
+              series.addPoint(target[i], false, false);
+              anyAdded = true;
+            }
+          });
+          lossChart.redraw(false);
+
+          step += 1;
+          if (!anyAdded || step * stepSize >= maxLen) {
+            clearInterval(timer);
+          }
+        }, intervalMs);
+      } catch (err) {
+        console.error('Failed to load 3D loss data:', err);
+      }
+    }
+
+    function createMetrics3DChart() {
+      if (!currentMetrics) {
+        return;
+      }
+      const models = currentLabels || Object.keys(currentMetrics);
+      if (!models.length) return;
+
+      const metricKeys = [
+        'GC_error',
+        'kmer_JS',
+        'Uniqueness',
+        'EditDist',
+        'MotifScore',
+        'Precision',
+        'Recall',
+        'Accuracy',
+        'F1'
+      ];
+      const metricLabels = [
+        'GC Error',
+        'K-mer JS',
+        'Uniqueness',
+        'Edit Dist',
+        'Motif',
+        'Precision',
+        'Recall',
+        'Accuracy',
+        'F1'
+      ];
+
+      // Compute per-metric max for normalization so all fit in z-axis nicely
+      const maxPerMetric = {};
+      metricKeys.forEach(key => {
+        let maxVal = 0;
+        models.forEach(m => {
+          const row = currentMetrics[m] || {};
+          const v = Number(row[key] ?? 0);
+          if (!Number.isNaN(v) && v > maxVal) maxVal = v;
+        });
+        maxPerMetric[key] = maxVal || 1;
+      });
+
+      // Build one series per metric so legend clearly shows which color = which metric
+      const series = metricKeys.map((key, ki) => {
+        const metricLabel = metricLabels[ki];
+        const metricPoints = [];
+        models.forEach((m, mi) => {
+          const row = currentMetrics[m] || {};
+          const raw = Number(row[key] ?? 0);
+          if (Number.isNaN(raw)) return;
+          const norm = raw / maxPerMetric[key];
+          metricPoints.push({
+            x: mi,
+            y: ki,
+            z: norm,
+            model: m,
+            metricKey: key,
+            metricLabel,
+            raw
+          });
+        });
+        return {
+          name: metricLabel,
+          data: metricPoints
+        };
+      });
+
+      const isLight = document.body.classList.contains('light-theme');
+      const textColor = isLight ? '#0f1a2b' : '#fff';
+      const gridLineColor = isLight ? 'rgba(15,25,50,0.15)' : 'rgba(255,255,255,0.08)';
+
+      const chart = Highcharts.chart('metrics3DChart', {
+        chart: {
+          type: 'scatter3d',
+          backgroundColor: 'rgba(0,0,0,0)',
+          options3d: {
+            enabled: true,
+            alpha: 20,
+            beta: 35,
+            depth: 400,
+            viewDistance: 30
+          }
+        },
+        title: { text: null },
+        legend: { itemStyle: { color: textColor } },
+        xAxis: {
+          categories: models,
+          title: { text: 'Model', style: { color: textColor } },
+          labels: { style: { color: textColor } },
+          gridLineColor: gridLineColor
+        },
+        yAxis: {
+          categories: metricLabels,
+          title: { text: 'Metric', style: { color: textColor } },
+          labels: { style: { color: textColor } },
+          gridLineColor: gridLineColor
+        },
+        zAxis: {
+          title: { text: 'Normalized value (0–1)', style: { color: textColor } },
+          labels: { style: { color: textColor } },
+          min: 0,
+          max: 1
+        },
+        tooltip: {
+          backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+          style: { color: textColor },
+          pointFormatter: function () {
+            const p = this;
+            const raw = p.raw;
+            return `<b>${p.model}</b><br/>` +
+                   `${p.metricLabel}: <b>${raw.toFixed(3)}</b><br/>` +
+                   `Normalized: <b>${p.z.toFixed(3)}</b>`;
+          }
+        },
+        plotOptions: {
+          scatter3d: {
+            marker: { radius: 4, symbol: 'circle' }
+          },
+          series: { animation: { duration: 600 } }
+        },
+        series
+      });
+
+      chartInstances['metrics3DChart'] = chart;
+      chartRecreateFunctions['metrics3DChart'] = createMetrics3DChart;
+
+      // Smooth auto-rotation animation for the 3D metrics cube
+      if (metrics3DRotationTimer) {
+        clearInterval(metrics3DRotationTimer);
+        metrics3DRotationTimer = null;
+      }
+      let beta = 35;
+      metrics3DRotationTimer = setInterval(() => {
+        if (!chart || !chart.options || !chart.options.chart || !chart.options.chart.options3d) {
+          clearInterval(metrics3DRotationTimer);
+          metrics3DRotationTimer = null;
+          return;
+        }
+        beta = (beta + 2) % 360;
+        chart.update({
+          chart: {
+            options3d: {
+              beta
+            }
+          }
+        }, false);
+        chart.redraw(false);
+      }, 120);
+    }
+
+    let threeDLoaded = false;
+
+    async function loadCorrelationHeatmaps(k=2) {
+      const list = ['Original','StackedGAN','CTGAN','WGAN'];
+      const qs = new URLSearchParams({ k: String(k), models: list.join(',') });
+      const res = await fetch('/correlation_heatmap_data?' + qs.toString());
+      const payload = await res.json();
+      const labels = payload.labels;
+      const models = payload.models;
+      const isLight = document.body.classList.contains('light-theme');
+      const textColor = isLight ? '#0f1a2b' : '#fff';
+      function drawTriangular(containerId, tri, title) {
+        const target = document.getElementById(containerId);
+        if (!target || !tri) { return; }
+        const parent = target.parentElement || target;
+        const styles = window.getComputedStyle(parent);
+        const padTop = parseInt(styles.paddingTop) || 0;
+        const padBottom = parseInt(styles.paddingBottom) || 0;
+        // Desired panel height based on width; larger for 3-mer (64x64)
+        const baseW = (parent.clientWidth || 600);
+        const desired = (currentK === 3)
+          ? Math.max(760, Math.min(1000, Math.round(baseW * 1.05)))
+          : Math.max(500, Math.min(640, Math.round(baseW * 0.85)));
+        // Set card height so background box wraps chart nicely
+        parent.style.height = (desired + padTop + padBottom + 10) + 'px';
+        const cardInner = desired;
+        const available = Math.max(420, cardInner - 60);
+        const chart = Highcharts.chart(containerId, {
+          chart: {
+            type: 'heatmap',
+            backgroundColor: 'rgba(0,0,0,0)',
+            height: (currentK===3 ? Math.min(available, 1200) : Math.min(available, 540)),
+            spacingRight: 20,
+            spacingLeft: 10,
+            marginRight: 20,
+            spacingBottom: 30
+          },
+          title: { text: title, style:{ color:textColor } },
+          xAxis: { categories: labels, labels:{ style:{ color:textColor, fontSize: (currentK===3? '9px':'10.5px') }, rotation: -30 } },
+          yAxis: { categories: labels, labels:{ style:{ color:textColor, fontSize: (currentK===3? '9px':'10.5px') } }, title:null },
+          colorAxis: { min: -1, max: 1, stops: [[0,'#4fc3f7'],[0.5,'#fff8e1'],[1,'#e57373']] },
+          legend: { itemStyle:{ color:textColor } },
+          tooltip: { 
+            pointFormat: 'corr={point.value:.2f}',
+            backgroundColor: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.8)',
+            style: { color: textColor }
+          },
+          series: [{
+            name: 'corr',
+            borderWidth: 0.4,
+            data: tri.data,
+            dataLabels: { enabled: (currentK===2), format: '{point.value:.2f}', style:{ textOutline:'none', color:isLight ? '#000' : '#fff', fontSize:'10px' } }
+          }]
+        });
+        chartInstances[containerId] = chart;
+        // Force reflow to sync sizes side-by-side
+        setTimeout(() => { try { chart.reflow(); } catch(e) {} }, 50);
+      }
+      drawTriangular('corrOriginal', models['Original'], 'Original');
+      drawTriangular('corrStacked', models['StackedGAN'], 'StackedGAN');
+      drawTriangular('corrCTGAN', models['CTGAN'], 'CTGAN');
+      drawTriangular('corrWGAN', models['WGAN'], 'WGAN');
+      
+      // Store recreation function for all correlation charts
+      ['corrOriginal', 'corrStacked', 'corrCTGAN', 'corrWGAN'].forEach(id => {
+        chartRecreateFunctions[id] = () => loadCorrelationHeatmaps(currentK);
+      });
+    }
+
+    // Toolbar interactions
+    const btnK2 = document.getElementById('btnK2');
+    const btnK3 = document.getElementById('btnK3');
+    btnK2.onclick = () => { currentK = 2; loadCorrelationHeatmaps(currentK); };
+    btnK3.onclick = () => { currentK = 3; loadCorrelationHeatmaps(currentK); };
+
+    // Initial render (4 panels) after layout settles
+    window.addEventListener('load', () => setTimeout(() => loadCorrelationHeatmaps(3), 50));
+    // Re-render on resize (debounced) to keep horizontal layout synced
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => loadCorrelationHeatmaps(currentK), 120);
+    });
+
+    // Tab controller
+    (function setupTabs() {
+      const buttons = Array.from(document.querySelectorAll(".tab-btn"));
+      const panels = Array.from(document.querySelectorAll(".tab-content"));
+      function activate(tab) {
+        buttons.forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+        panels.forEach(p => p.classList.toggle("active", p.id === `tab-${tab}`));
+        
+        // Load UMAP when tab is clicked
+        if (tab === 'umap' && !umapLoaded) {
+          setTimeout(() => {
+            loadUmapScatter();
+            umapLoaded = true;
+          }, 100);
+        }
+
+        // Load 3D charts lazily when tab is first opened
+        if (tab === 'threeD' && !threeDLoaded) {
+          setTimeout(() => {
+            loadLosses3DCharts();
+            createMetrics3DChart();
+            threeDLoaded = true;
+          }, 100);
+        }
+        
+        // Re-render charts when tab becomes visible (for theme changes)
+        if (tab === 'umap' && umapLoaded && chartInstances['umapScatter']) {
+          setTimeout(() => {
+            try {
+              chartInstances['umapScatter'].reflow();
+            } catch(e) {
+              console.warn('UMAP reflow error:', e);
+            }
+          }, 50);
+        }
+      }
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => activate(btn.dataset.tab));
+      });
+    })();
+  </script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>

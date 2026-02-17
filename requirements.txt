@@ -1,0 +1,22 @@
+# Core ML / DL
+torch>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.11.0
+
+# Generative models
+sdv>=1.12.0
+ctgan>=0.7.1   # sometimes SDV already bundles this, but safe to include
+
+# Evaluation utils
+editdistance>=0.6.2
+
+# Web framework
+flask>=2.3.0
+
+# Visualization
+matplotlib>=3.7.0
+umap-learn>=0.5.4
+
+# Optional (good to have for notebook experiments / logging)
+tqdm>=4.66.0

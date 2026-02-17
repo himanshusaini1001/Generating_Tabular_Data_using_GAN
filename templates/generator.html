@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🧬 DNA Sequence Generator</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <style>
+    .container {
+      max-width: 1300px;
+    }
+    /* Ensure containers have height */
+    #dna3d {
+      width: 100%;
+      height: 500px;
+      background: rgba(0,0,0,0.1);
+    }
+    .dna3d-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .page-title {
+      color: aliceblue;
+    }
+    body.light-theme .page-title {
+      color: #0f1a2b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-nav">
+      <div class="top-nav__brand">Stacked GAN</div>
+      <nav class="top-nav__links">
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav__actions" style="position: right;">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+          <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+          <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+          <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+    <header>
+      <h1 class="page-title">🧬 DNA Sequence Generator</h1>
+      
+    </header>
+
+    <section class="page-intro">
+      <p>
+        Configure the Stacked SeqGAN to synthesize telomere-to-telomere chromosome 12 windows,
+        inspect GC trends in real time, explore the interactive 3D helix, and export results for downstream analysis.
+      </p>
+      <div style="margin-top: 20px; padding: 16px; background: rgba(101,248,217,0.08); border-radius: 12px; border-left: 4px solid var(--accent);">
+        <h4 style="color: var(--accent); margin-bottom: 10px;">💡 Understanding Synthetic DNA Generation</h4>
+        <p style="line-height: 1.6; margin: 0; font-size: 0.95rem;">
+          Synthetic DNA sequences are artificially generated nucleotide sequences that mimic the statistical and 
+          biological properties of real genomic data. Unlike random sequences, synthetic DNA maintains important 
+          characteristics like GC content, k-mer distributions, and functional motifs. This tool uses a StackedGAN 
+          (Stacked Generative Adversarial Network) architecture that learns from real chromosome 12 data to generate 
+          high-quality synthetic sequences. These sequences can be used for algorithm testing, data augmentation, 
+          privacy-preserving research, and training machine learning models without accessing sensitive patient data.
+        </p>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <section class="controls">
+      <div class="input-group">
+        <label>Number of sequences:</label>
+        <input type="number" id="num_sequences" value="100" min="1">
+      </div>
+      <button id="generate_btn">Generate Sequences</button>
+    </section>
+
+    <!-- Base composition chart -->
+    <section class="grid-container hidden">
+      <div class="chart-box">
+        <canvas id="baseChart"></canvas>
+      </div>
+      <div class="synthetic-info-box">
+        <h3 style="color: #4DFFB8; margin-bottom: 15px;">🧬 Synthetic Data Analysis</h3>
+        <div class="info-item">
+          <span class="info-label">Data Type:</span>
+          <span class="info-value">Generated DNA Sequences</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Model:</span>
+          <span class="info-value">StackedGAN</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Sequence Length:</span>
+          <span class="info-value">70 nucleotides</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Quality Score:</span>
+          <span class="info-value" id="quality_score">85%</span>
+        </div>
+        <div class="comparison-chart">
+          <canvas id="comparisonChart"></canvas>
+        </div>
+      </div>
+      <div class="gc-box">
+        <label id="gc_label">GC Content: 0%</label>
+        <progress id="gc_progress" value="0" max="100"></progress>
+      </div>
+    </section>
+
+    <!-- 3D DNA + per-sequence chart -->
+    <section class="dna3d-container hidden">
+      <div class="dna3d-header">
+        <h3 style="color: aquamarine;">3D DNA Helix</h3>
+        <select id="sequence_dropdown"></select>
+      </div>
+      <div style="display: flex; gap: 20px; height: 500px;">
+        <div id="dna3d" style="flex: 2;"></div>
+        <div style="flex: 1; ">
+          <canvas id="seqChart" style="width: 100%; height: 100%;"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Output sequences -->
+    <section class="output-container hidden">
+      <pre id="output"></pre>
+    </section>
+
+    <!-- Download buttons -->
+    <div class="download-buttons hidden">
+      <button id="download_fasta">Download FASTA</button>
+      <button id="download_csv">Download CSV</button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>

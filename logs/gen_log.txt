@@ -1,0 +1,36 @@
+GEN started at Sat Oct 25 12:03:44 2025
+Parameters:
+  mode: gen
+  checkpoint: checkpoints/stacked_epoch150.pt
+  n: 50
+  seq_len: 70
+  device: cuda
+Generated 50 sequences
+Generation finished at Sat Oct 25 12:03:45 2025 | Elapsed time: 0.46 s
+GEN started at Sat Oct 25 12:15:18 2025
+Parameters:
+  mode: gen
+  checkpoint: checkpoints/stacked_epoch50.pt
+  n: 50
+  seq_len: 70
+  device: cuda
+Generated 50 sequences
+Generation finished at Sat Oct 25 12:15:19 2025 | Elapsed time: 0.58 s
+GEN started at Sat Oct 25 12:24:33 2025
+Parameters:
+  mode: gen
+  checkpoint: checkpoints/stacked_epoch150.pt
+  n: 50
+  seq_len: 70
+  device: cuda
+Generated 50 sequences
+Generation finished at Sat Oct 25 12:24:33 2025 | Elapsed time: 0.58 s
+GEN started at Mon Oct 27 14:48:53 2025
+Parameters:
+  mode: gen
+  checkpoint: checkpoints/stacked_epoch50.pt
+  n: 20
+  seq_len: 70
+  device: cuda
+Generated 20 sequences
+Generation finished at Mon Oct 27 14:48:53 2025 | Elapsed time: 0.14 s

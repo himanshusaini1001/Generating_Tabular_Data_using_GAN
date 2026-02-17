@@ -1,0 +1,1124 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stacked SeqGAN | Genomic Discovery Hub</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #05060a;
+      --card: #0d0f16;
+      --accent: #65f8d9;
+      --accent-soft: rgba(101, 248, 217, 0.15);
+      --glow: 0 0 20px rgba(101, 248, 217, 0.35);
+      --muted: #9aa3c2;
+      --text: #f6faff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #0f1320, #05060a 60%);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      width: min(1200px, 92%);
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+      position: relative;
+      z-index: 50; /* keep nav above any decorative layers */
+    }
+
+    .top-nav nav {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .top-nav nav a {
+      display: flex !important;
+      width: max-content;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      align-items: center;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+      pointer-events: auto; /* ensure links remain clickable even if overlapped */
+    }
+
+    .top-nav nav a:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .top-nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .theme-toggle {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: transparent;
+      color: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .user-pill {
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      font-weight: 600;
+    }
+
+    .auth-link {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+    }
+
+    .auth-link:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    header.hero {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 32px;
+      margin-bottom: 56px;
+      position: relative;
+      isolation: isolate;
+    }
+
+    header.hero::after {
+      content: "";
+      position: absolute;
+      inset: -60px;
+      background: radial-gradient(circle, rgba(101, 248, 217, 0.12), transparent 70%);
+      z-index: -1;
+      filter: blur(60px);
+    }
+
+    .hero-card {
+      background: linear-gradient(130deg, rgba(101, 248, 217, 0.12), rgba(4, 15, 41, 0.85));
+      padding: 36px;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero-card h1 {
+      font-size: clamp(2.6rem, 4vw, 3.6rem);
+      margin: 0 0 18px;
+      line-height: 1.1;
+    }
+
+    .hero-card p {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-bottom: 28px;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .cta {
+      padding: 14px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.02);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .cta.primary {
+      background: var(--accent);
+      color: #04131b;
+      box-shadow: var(--glow);
+    }
+
+    .cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+    }
+
+    .stat {
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stat h3 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+
+    .stat p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    section {
+      margin-bottom: 48px;
+      background: var(--card);
+      border-radius: 28px;
+      padding: 32px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    section h2 {
+      margin: 0 0 12px;
+      font-size: 2rem;
+    }
+
+    section>p {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+
+    .info-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 18px;
+    }
+
+    .info-card {
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.01);
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .info-card.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      transform: translateY(-4px);
+    }
+
+    .info-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+    }
+
+    .info-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .info-detail {
+      margin-top: 26px;
+      padding: 24px;
+      border-radius: 20px;
+      background: rgba(4, 20, 33, 0.8);
+      border: 1px solid rgba(101, 248, 217, 0.3);
+      min-height: 140px;
+    }
+
+    .info-detail h4 {
+      margin: 0 0 12px;
+      color: var(--accent);
+    }
+
+    .info-detail p {
+      margin: 0;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .dataset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .dataset-card {
+      padding: 22px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .dataset-card h3 {
+      margin: 0 0 12px;
+    }
+
+    .dataset-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .dataset-card li {
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .dataset-card span {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .nav-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .nav-card {
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.015);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .nav-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--accent);
+    }
+
+    .nav-card h4 {
+      margin: 0 0 8px;
+    }
+
+    .nav-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .nav-card .pill {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+    }
+
+    .timeline {
+      margin-top: 18px;
+      border-left: 2px dashed rgba(255, 255, 255, 0.1);
+      padding-left: 24px;
+    }
+
+    .timeline-step {
+      margin-bottom: 18px;
+      position: relative;
+    }
+
+    .timeline-step::before {
+      content: "";
+      position: absolute;
+      left: -34px;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: var(--glow);
+    }
+
+    .timeline-step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 32px;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .page {
+        width: 95%;
+        padding: 32px 0 48px;
+      }
+
+      header.hero {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+
+      .hero-card {
+        padding: 28px;
+      }
+
+      section {
+        padding: 24px;
+      }
+
+      #dna-basics>div:first-of-type {
+        grid-template-columns: 1fr !important;
+        gap: 24px !important;
+      }
+
+      #dna-basics>div:first-of-type>div:last-child,
+      .dna-viz-container {
+        height: 300px !important;
+      }
+
+      .dataset-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .nav-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .page {
+        width: 98%;
+        padding: 24px 0 32px;
+      }
+
+      .top-nav {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .top-nav nav {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .top-nav nav a {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+      }
+
+      .theme-toggle {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+      }
+
+      header.hero {
+        margin-bottom: 40px;
+      }
+
+      .hero-card {
+        padding: 24px;
+      }
+
+      .hero-card h1 {
+        font-size: clamp(2rem, 5vw, 2.8rem);
+      }
+
+      .hero-card p {
+        font-size: 1rem;
+      }
+
+      .cta-row {
+        flex-direction: column;
+      }
+
+      .cta {
+        width: 100%;
+        text-align: center;
+        padding: 12px 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .stat {
+        padding: 12px;
+      }
+
+      .stat h3 {
+        font-size: 1.5rem;
+      }
+
+      section {
+        padding: 20px;
+        margin-bottom: 32px;
+      }
+
+      section h2 {
+        font-size: 1.6rem;
+      }
+
+      .info-panels {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .info-card {
+        padding: 16px;
+      }
+
+      .info-detail {
+        padding: 20px;
+      }
+
+      #dna-basics>div:first-of-type {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+      }
+
+      #dna-basics>div:first-of-type>div:last-child,
+      .dna-viz-container {
+        height: 250px !important;
+        padding: 16px !important;
+      }
+
+      #dna-basics>div:last-child {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+      }
+
+      .dataset-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .dataset-card {
+        padding: 18px;
+      }
+
+      .nav-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .nav-card {
+        padding: 18px;
+      }
+
+      .timeline {
+        padding-left: 20px;
+      }
+
+      .timeline-step {
+        margin-bottom: 16px;
+      }
+
+      .timeline-step::before {
+        left: -28px;
+        width: 10px;
+        height: 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .page {
+        padding: 16px 0 24px;
+
+      }
+
+      .top-nav {
+        margin-bottom: 24px;
+
+      }
+
+      .top-nav nav {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .top-nav nav a {
+        width: 100%;
+        text-align: center;
+      }
+
+      .theme-toggle {
+        width: 100%;
+        text-align: center;
+      }
+
+      header.hero {
+        margin-bottom: 32px;
+        gap: 20px;
+      }
+
+      .hero-card {
+        padding: 20px;
+      }
+
+      .hero-card h1 {
+        font-size: 1.8rem;
+        margin-bottom: 12px;
+      }
+
+      .hero-card p {
+        font-size: 0.95rem;
+        margin-bottom: 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      section {
+        padding: 16px;
+        margin-bottom: 24px;
+        border-radius: 20px;
+      }
+
+      section h2 {
+        font-size: 1.4rem;
+        margin-bottom: 10px;
+      }
+
+      section>p {
+        font-size: 0.9rem;
+        margin-bottom: 16px;
+      }
+
+      .info-card h3 {
+        font-size: 1.1rem;
+      }
+
+      .info-card p {
+        font-size: 0.9rem;
+      }
+
+      #dna-basics>div:first-of-type>div:last-child,
+      .dna-viz-container {
+        height: 200px !important;
+        padding: 12px !important;
+      }
+
+      #dna-basics h3 {
+        font-size: 1.2rem !important;
+      }
+
+      #dna-basics p {
+        font-size: 0.9rem !important;
+        line-height: 1.5 !important;
+      }
+
+      .dataset-card h3,
+      .nav-card h4 {
+        font-size: 1.1rem;
+      }
+
+      .dataset-card ul,
+      .nav-card p {
+        font-size: 0.9rem;
+      }
+    }
+
+    body.light-theme {
+      color-scheme: light;
+      --text: #051028;
+      --muted: #4f5670;
+      --card: rgba(255, 255, 255, 0.9);
+      --accent-soft: rgba(101, 248, 217, 0.25);
+      background: radial-gradient(circle at 20% 20%, #f8fbff, #dfe9ff 65%);
+      color: var(--text);
+    }
+
+    body.light-theme .hero-card {
+      background: linear-gradient(130deg, rgba(101, 248, 217, 0.08), rgba(255, 255, 255, 0.95));
+      border-color: rgba(5, 16, 40, 0.08);
+    }
+
+    body.light-theme .info-card {
+      border-color: rgba(5, 16, 40, 0.1);
+      background: rgba(5, 16, 40, 0.02);
+    }
+
+    body.light-theme .info-detail {
+      background: rgba(5, 16, 40, 0.05);
+      border-color: rgba(101, 248, 217, 0.4);
+      color: var(--text);
+    }
+
+    body.light-theme .dataset-card,
+    body.light-theme .nav-card,
+    body.light-theme .stat {
+      background: rgba(5, 16, 40, 0.04);
+      border-color: rgba(5, 16, 40, 0.08);
+    }
+
+    body.light-theme #dna-basics>div>div:last-child {
+      background: rgba(5, 16, 40, 0.05);
+    }
+
+    body.light-theme #dna-basics>div:last-child>div {
+      background: rgba(5, 16, 40, 0.04);
+      border-color: rgba(101, 248, 217, 0.3);
+    }
+
+    body.light-theme .timeline {
+      border-left-color: rgba(5, 16, 40, 0.25);
+    }
+
+    body.light-theme .timeline-step::before {
+      box-shadow: 0 0 12px rgba(101, 248, 217, 0.4);
+    }
+
+    body.light-theme .top-nav nav a {
+      border-color: rgba(5, 16, 40, 0.12);
+      background: rgba(5, 16, 40, 0.04);
+    }
+
+    body.light-theme .theme-toggle {
+      border-color: rgba(5, 16, 40, 0.2);
+    }
+    .p1{ text-align: justify; }
+
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="top-nav">
+      <div style="font-weight:700; letter-spacing:0.12em; text-transform:uppercase;">Stacked GAN</div>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav-actions">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+        <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+        <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+        <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+    <header class="hero">
+      <div class="hero-card">
+        <h1 style="color: var(--accent); font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;">
+          Stacked GAN:
+        </h1>
+        <h2>Generating Synthetic Data Using Hybrid GAN</h2>
+        <p style="text-align: justify;">
+          This work examines real chromosome-12 datasets, outlines the genomic sequencing process, and implements a StackedGAN pipeline for high-fidelity genomic sequence generation. The proposed approach emphasizes data preprocessing, model architecture design, and training optimization to ensure biological relevance and sequence accuracy. Experimental results demonstrate the effectiveness of the StackedGAN framework in capturing complex genomic patterns and generating realistic synthetic sequences suitable for downstream bioinformatics analysis.
+        </p>
+        <div class="cta-row">
+          <a class="cta primary" href="/generator">Launch Generator</a>
+          <a class="cta" href="/comparison">Model Showdown</a>
+          <a class="cta" href="/metrics">Biological Metrics</a>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <span style="color:var(--muted);text-transform:uppercase;letter-spacing:0.18em;font-size:0.85rem;">Project
+            snapshot</span>
+          <a href="#dataset" style="font-size:0.9rem;color:var(--accent);">Dataset →</a>
+        </div>
+        <div class="stats-grid">
+          <div class="stat">
+            <h3>70</h3>
+            <p>Nucleotide window per sample</p>
+          </div>
+          <div class="stat">
+            <h3>1.1M+</h3>
+            <p>bp chromosome span (CHM13 chr12)</p>
+          </div>
+          <div class="stat">
+            <h3>42%</h3>
+            <p>GC target enforced during training</p>
+          </div>
+          <div class="stat">
+            <h3>6</h3>
+            <p>Baseline models for benchmarking</p>
+          </div>
+        </div>
+        <div class="cta-row" style="margin-top:18px;">
+          <a class="cta" href="/verification">Verification report</a>
+          <a class="cta" href="/validation">Validation (Synthetic vs real) DNA</a>
+        </div>
+      </div>
+    </header>
+
+    <section id="dna-basics">
+      <h2>🧬 Understanding DNA: The Blueprint of Life</h2>
+      <div class="dna-basics-content"
+        style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; margin-top: 24px;">
+        <div>
+          <h3 style="color: var(--accent); margin-bottom: 16px;">What is DNA?</h3>
+          <p style="line-height: 1.7; margin-bottom: 16px;text-align: justify;">
+            <strong>Deoxyribonucleic Acid (DNA)</strong> is the molecular foundation of all known life forms.
+            It's a double-stranded helix that encodes genetic instructions used in the development, functioning,
+            growth, and reproduction of all living organisms. Think of DNA as nature's most sophisticated
+            programming language—one that has been evolving for billions of years.
+          </p>
+          <p id="p1" style="line-height: 1.7; margin-bottom: 16px; text-align: justify;">
+            Each DNA molecule consists of two long chains of nucleotides twisted into a double helix.
+            These nucleotides contain four nitrogenous bases: <strong style="color: #FF4D6D;">Adenine (A)</strong>,
+            <strong style="color: #4DFFB8;">Thymine (T)</strong>, <strong style="color: #4D6DFF;">Guanine (G)</strong>,
+            and <strong style="color: #FFD24D;">Cytosine (C)</strong>. The sequence of these bases determines
+            the genetic information, much like how binary code determines computer programs.
+          </p>
+          <h3 style="color: var(--accent); margin-top: 24px; margin-bottom: 16px;">How DNA is Formed</h3>
+          <p style="line-height: 1.7; margin-bottom: 16px; text-align: justify;">
+            DNA formation occurs through a process called <strong>DNA replication</strong>, which happens
+            before cell division. During replication, the double helix unwinds, and each strand serves as
+            a template for creating a new complementary strand. This ensures that each new cell receives
+            an exact copy of the genetic material.
+          </p>
+          <p style="line-height: 1.7; text-align: justify;">
+            The bases pair specifically: A always pairs with T, and G always pairs with C. This complementary
+            base pairing is crucial for maintaining genetic stability and enables the accurate transmission
+            of genetic information from one generation to the next.
+          </p>
+        </div>
+        <div class="dna-viz-container"
+          style="position: relative; height: 400px; background: rgba(101,248,217,0.08); border-radius: 20px; padding: 20px;">
+          <img src="{{ url_for('static', filename='images/dd.jpg') }}" alt="DNA" style="width: 500px; height: 350px; border-radius: 15px;">
+        </div>
+      </div>
+      <div class="dna-info-cards"
+        style="margin-top: 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <div
+          style="padding: 20px; background: rgba(101,248,217,0.08); border-radius: 16px; border: 1px solid rgba(101,248,217,0.2);">
+          <h4 style="color: var(--accent); margin-bottom: 12px;">📐 Structure</h4>
+          <p style="line-height: 1.6; font-size: 0.95rem;">
+            The double helix is approximately 2 nanometers wide and completes one full turn every 10.5 base pairs.
+            This elegant structure allows DNA to be compactly stored while remaining accessible for replication and
+            transcription.
+          </p>
+        </div>
+        <div
+          style="padding: 20px; background: rgba(101,248,217,0.08); border-radius: 16px; border: 1px solid rgba(101,248,217,0.2);">
+          <h4 style="color: var(--accent); margin-bottom: 12px;">🔗 Base Pairing</h4>
+          <p style="line-height: 1.6; font-size: 0.95rem;">
+            Hydrogen bonds connect complementary bases: A-T pairs form 2 hydrogen bonds, while G-C pairs form 3,
+            making G-C pairs slightly more stable. This pairing ensures genetic fidelity during replication.
+          </p>
+        </div>
+        <div
+          style="padding: 20px; background: rgba(101,248,217,0.08); border-radius: 16px; border: 1px solid rgba(101,248,217,0.2);">
+          <h4 style="color: var(--accent); margin-bottom: 12px;">🧪 Function</h4>
+          <p style="line-height: 1.6; font-size: 0.95rem;">
+            DNA stores genetic information that directs protein synthesis through RNA intermediates.
+            Only about 1-2% of human DNA codes for proteins; the rest includes regulatory sequences,
+            structural elements, and evolutionary remnants.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>How the Journey Works</h2>
+      <p>Tap a module to explore key concepts before diving into the tooling.</p>
+      <div class="info-panels" id="info-panels">
+        <article class="info-card active" data-detail="sequencing">
+          <h3>DNA Sequencing 101</h3>
+          <p>From sample extraction to base calling—how raw molecules become digital code.</p>
+        </article>
+        <article class="info-card" data-detail="synthetic">
+          <h3>Synthetic Data Generation</h3>
+          <p>Why we augment rare genomic cohorts with adversarial learning.</p>
+        </article>
+        <article class="info-card" data-detail="stacked">
+          <h3>StackedGAN Architecture</h3>
+          <p>Dual-stage generator + conditional encoder for structure-aware sequences.</p>
+        </article>
+        <article class="info-card" data-detail="tooling">
+          <h3>Workspace Tour</h3>
+          <p>Pick the experience suited to your task—analytics, models, or treatments.</p>
+        </article>
+      </div>
+      <div class="info-detail" id="info-detail">
+        <h4>DNA Sequencing 101</h4>
+        <p style="text-align: justify;">
+          Modern instruments fragment chromosome 12, amplify each strand, and read fluorescent
+          pulses that correspond to A/C/G/T bases. Signal processing reconstructs contiguous reads,
+          which we align back to the CHM13 reference to identify trustworthy regions for model training.
+        </p>
+        <p style="margin-top: 12px;text-align: justify; ">
+          <strong>Next-Generation Sequencing (NGS)</strong> technologies like Illumina, PacBio, and Oxford Nanopore
+          have revolutionized genomics by enabling rapid, cost-effective sequencing. These platforms can sequence
+          entire genomes in days rather than years, generating terabytes of data that require sophisticated
+          computational analysis to extract meaningful biological insights.
+        </p>
+      </div>
+    </section>
+
+    <section id="dataset">
+      <h2>Reference Dataset · CHM13 Chromosome 12</h2>
+      <p>
+        We seed StackedGAN with high-confidence windows from the telomere-to-telomere assembly
+        published in the NCBI record <a href="https://www.ncbi.nlm.nih.gov/nuccore/CP068266.2?report=genbank"
+          target="_blank" style="color:var(--accent);">CP068266.2</a>.
+      </p>
+      <div class="dataset-grid">
+        <div class="dataset-card">
+          <h3>Genome Traits</h3>
+          <ul>
+            <li>Organism <span>Homo sapiens (CHM13)</span></li>
+            <li>Chromosome <span>12 </span></li>
+            <li>Length <span>≈133,275,309 bp</span></li>
+            <li>GC content <span>41–42%</span></li>
+          </ul>
+        </div>
+        <div class="dataset-card">
+          <h3>Why This Matters</h3>
+          <ul>
+            <li>Completeness <span>No gaps, telomere-to-telomere</span></li>
+            <li>Stability <span>Derived from haploid CHM13 line</span></li>
+            <li>Signals <span>Enriched for immuno &amp; neuro loci</span></li>
+            <li>Benchmark <span>Ideal to stress-test GC control</span></li>
+          </ul>
+        </div>
+        <div class="dataset-card">
+          <h3>StackedGAN Training Feed</h3>
+          <ul>
+            <li>Tokenizer <span>Character-level (A,C,G,T,N)</span></li>
+            <li>Windowing <span>Sliding 70-mer contexts</span></li>
+            <li>Conditions <span>GC bins + functional tags</span></li>
+            <li>Targets <span>Balanced promoter &amp; intergenic</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>StackedGAN Playbook</h2>
+      <p>Understand the workflow before you generate or evaluate sequences.</p>
+      <div class="timeline">
+        <div class="timeline-step">
+          <strong>1. Context Encoder</strong>
+          <span>Maps regulatory annotations + GC guidance into latent conditions.</span>
+        </div>
+        <div class="timeline-step">
+          <strong>2. Stage-I Generator</strong>
+          <span>Drafts coarse DNA motifs with Wasserstein adversarial loss.</span>
+        </div>
+        <div class="timeline-step">
+          <strong>3. Stage-II Refiner</strong>
+          <span>Sharpens motif edges, enforces palindromic + CpG patterns.</span>
+        </div>
+        <div class="timeline-step">
+          <strong>4. Multi-Discriminator Review</strong>
+          <span>One critic watches nucleotide balance, another monitors k-mer entropy.</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Choose Your Next Stop</h2>
+      <p>Every module links out and hints at the insights you will unlock.</p>
+      <div class="nav-grid">
+        <a class="nav-card" href="/generator">
+          <h4>Generator Lab</h4>
+          <p>Create sequences, visualize GC trends, and download FASTA/CSV.</p>
+          <span class="pill">Ideal for data scientists</span>
+        </a>
+        <a class="nav-card" href="/metrics">
+          <h4>Biological Metrics</h4>
+          <p>Inspect per-model GC spread, k-mer heatmaps, and PCA embeddings.</p>
+          <span class="pill">Quality assurance</span>
+        </a>
+        <a class="nav-card" href="/comparison">
+          <h4>Model Comparison</h4>
+          <p>Dive into benchmarking tables that justify the stacked architecture.</p>
+          <span class="pill">Stakeholder-ready</span>
+        </a>
+        <a class="nav-card" href="/treatment">
+          <h4>Treatment Knowledge</h4>
+          <p>Map synthetic variants to downstream disease management strategies.</p>
+          <span class="pill">Clinical context</span>
+        </a>
+      </div>
+    </section>
+
+    <footer>
+      Need a guided tour? Start at Generator Lab, then cycle through Metrics → Comparison → Treatment to cover the full
+      research stack.
+    </footer>
+  </div>
+
+  <script>
+    const panels = document.querySelectorAll(".info-card");
+    const detail = document.getElementById("info-detail");
+    const messages = {
+      sequencing: {
+        title: "DNA Sequencing 101",
+        body: "Modern instruments fragment chromosome 12, amplify each strand, and read fluorescent pulses that correspond to A/C/G/T bases. Signal processing reconstructs contiguous reads, which we align back to the CHM13 reference to identify trustworthy regions for model training.<br><br><strong>Next-Generation Sequencing (NGS)</strong> technologies like Illumina, PacBio, and Oxford Nanopore have revolutionized genomics by enabling rapid, cost-effective sequencing. These platforms can sequence entire genomes in days rather than years, generating terabytes of data that require sophisticated computational analysis to extract meaningful biological insights. The process involves library preparation, cluster generation, sequencing-by-synthesis, and base calling algorithms that convert raw signals into nucleotide sequences."
+      },
+      synthetic: {
+        title: "Synthetic Data Generation",
+        body: "Regulatory genomics suffers from scarce labeled samples. By conditioning GANs on GC bins and annotations we create realistic trajectories that expand downstream classifiers without leaking PHI.<br><br><strong>Why Synthetic DNA?</strong> Real genomic datasets are often limited, expensive to collect, and raise privacy concerns. Synthetic data generation using Generative Adversarial Networks (GANs) allows researchers to create unlimited, privacy-preserving datasets that maintain the statistical properties of real DNA sequences. This is crucial for training machine learning models, testing algorithms, and augmenting rare disease cohorts where patient samples are scarce. Our StackedGAN approach ensures generated sequences respect biological constraints like GC content, k-mer distributions, and functional motifs."
+      },
+      stacked: {
+        title: "StackedGAN Architecture",
+        body: "Two generators cooperate: Stage-I sketches motif layouts, Stage-II refines micro-patterns while a conditional encoder injects biological priors. Multi-discriminators keep both nucleotide balance and higher-order k-mer entropy in check.<br><br><strong>Technical Innovation:</strong> Unlike single-stage GANs, StackedGAN uses a hierarchical approach. The first generator creates coarse sequence structures, while the second refines them to match biological patterns. A conditional encoder allows us to control GC content and functional annotations. Multiple discriminators evaluate sequences at different levels—from individual nucleotides to k-mer distributions—ensuring both local and global biological realism. This architecture outperforms baseline models like WGAN, CTGAN, and CGAN in maintaining sequence quality metrics."
+      },
+      tooling: {
+        title: "Workspace Tour",
+        body: "Use Generator Lab for sequence synthesis, Metrics for validation dashboards, Comparison for ablation evidence, and Treatment to connect variants to actionable literature.<br><br><strong>Navigation Guide:</strong> The <strong>Generator Lab</strong> lets you create synthetic DNA sequences with real-time visualization. The <strong>Metrics</strong> page provides comprehensive biological validation including GC content analysis, motif detection, and 3D helix visualization. The <strong>Comparison</strong> page showcases how StackedGAN outperforms other models across multiple metrics. Finally, the <strong>Treatment</strong> page helps connect genetic variants to potential therapeutic interventions, making this tool valuable for both research and clinical applications."
+      }
+    };
+    panels.forEach(card => {
+      card.addEventListener("click", () => {
+        panels.forEach(c => c.classList.remove("active"));
+        card.classList.add("active");
+        const key = card.dataset.detail;
+        detail.innerHTML = `<h4>${messages[key].title}</h4><p>${messages[key].body}</p>`;
+      });
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+  (function () {
+    const container = document.getElementById('dna-three');
+    if (!container) return;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 0, 12);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.2;
+
+    const lights = [
+      new THREE.AmbientLight(0xffffff, 0.6),
+      new THREE.DirectionalLight(0x65f8d9, 0.8)
+    ];
+    lights[1].position.set(5, 10, 7);
+    scene.add(...lights);
+
+    const helixGroup = new THREE.Group();
+    const strandMat = new THREE.MeshStandardMaterial({ color: 0x4dfbca, metalness: 0.2, roughness: 0.3 });
+    const rungColors = [0xff4d6d, 0x4dffb8, 0x4d6dff, 0xffd24d];
+    const rungMat = rungColors.map(c => new THREE.MeshStandardMaterial({ color: c, metalness: 0.1, roughness: 0.4 }));
+
+    const turns = 12;
+    const pointsPerTurn = 24;
+    const radius = 2.2;
+    const height = 8;
+    const pitch = height / (turns * pointsPerTurn);
+
+    const strandGeom = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(
+        Array.from({ length: turns * pointsPerTurn }, (_, i) => {
+          const angle = i * (Math.PI * 2 / pointsPerTurn);
+          const x = radius * Math.cos(angle);
+          const y = -height / 2 + i * pitch;
+          const z = radius * Math.sin(angle);
+          return new THREE.Vector3(x, y, z);
+        })
+      ),
+      400,
+      0.07,
+      8,
+      false
+    );
+
+    const strandGeom2 = strandGeom.clone();
+    strandGeom2.translate(0.3, 0, 0.3);
+
+    helixGroup.add(new THREE.Mesh(strandGeom, strandMat));
+    helixGroup.add(new THREE.Mesh(strandGeom2, strandMat.clone()));
+
+    const rungGeom = new THREE.CylinderGeometry(0.08, 0.08, radius * 2.1, 16);
+    for (let i = 0; i < turns * pointsPerTurn; i += 2) {
+      const angle = i * (Math.PI * 2 / pointsPerTurn);
+      const y = -height / 2 + i * pitch;
+      const rung = new THREE.Mesh(rungGeom, rungMat[i % rungMat.length]);
+      rung.position.set(0, y, 0);
+      rung.rotation.z = Math.PI / 2;
+      rung.rotation.y = angle / 2;
+      helixGroup.add(rung);
+    }
+
+    scene.add(helixGroup);
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+      helixGroup.rotation.y = t * 0.2;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      const { clientWidth, clientHeight } = container;
+      renderer.setSize(clientWidth, clientHeight);
+      camera.aspect = clientWidth / clientHeight;
+      camera.updateProjectionMatrix();
+    });
+  })();
+</script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+
+</html>

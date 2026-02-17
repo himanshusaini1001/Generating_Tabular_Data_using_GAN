@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🔬 Synthetic vs Real Validation</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .metrics-container {
+      max-width: 1300px;
+    }
+    .functional-metrics-box {
+      width: 100%;
+      margin-top: 20px;
+      border-radius: 24px;
+      padding: 24px 28px;
+      background: radial-gradient(circle at 0 0, rgba(79,195,247,0.15), rgba(5,6,10,0.96));
+      border: 1px solid rgba(79,195,247,0.4);
+    }
+    .validation-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+    .validation-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .validation-card h3,
+    .validation-card h4 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    #baseTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+    #baseTable th,
+    #baseTable td {
+      padding: 6px 8px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    #baseTable thead th {
+      background: rgba(255,255,255,0.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="container metrics-container">
+    <div class="top-nav">
+      <div class="top-nav__brand">Stacked GAN</div>
+      <nav class="top-nav__links">
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav__actions">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+          <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+          <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+          <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <header>
+      <h1 class="page-title" style="color: antiquewhite;">🔬 Validation against Real Chromosome 12</h1>
+      <p>This page compares synthetic windows to the original CHM13 chr12 training data to validate that distributions match (GC%, base composition, and 2‑mer patterns), similar in spirit to combining <code>seqkit stats</code>, <code>seqkit fx2tab</code>, and BioPython's GC utilities.</p>
+    </header>
+
+    <section class="page-intro">
+      {% if metrics.status == "PASS" %}
+        <p><strong>Status:</strong> <span style="color:#4caf50;">PASS – synthetic data closely matches the real distribution.</span></p>
+      {% elif metrics.status == "WARN" %}
+        <p><strong>Status:</strong> <span style="color:#ffd54f;">WARN – synthetic data is reasonable but diverges slightly on one or more metrics.</span></p>
+      {% else %}
+        <p><strong>Status:</strong> <span style="color:#ff6b6b;">FAIL – validation could not be performed.</span></p>
+      {% endif %}
+      <p style="margin-top:8px;">These checks mirror what you would do with tools like seqkit/BioPython: GC comparison, base composition, and short k-mer spectra.</p>
+    </section>
+
+    <section class="functional-metrics-box">
+      {% if metrics.status == "FAIL" %}
+        <p>{{ metrics.reason }}</p>
+      {% else %}
+        <div class="validation-grid">
+          <div class="validation-card">
+            <h3>GC Content Match</h3>
+            <p><strong>Real mean GC%:</strong> {{ '%.2f'|format(metrics.gc_mean_real) }}</p>
+            <p><strong>Synthetic mean GC%:</strong> {{ '%.2f'|format(metrics.gc_mean_synth) }}</p>
+            <p><strong>Abs. difference:</strong> {{ '%.2f'|format(metrics.gc_diff) }} (target ≤ 3.0)</p>
+          </div>
+          <div class="validation-card">
+            <h3>Length profile (bp)</h3>
+            <p><strong>Real N50:</strong> {{ '%.1f'|format(metrics.len_real.n50) }}</p>
+            <p><strong>Synth N50:</strong> {{ '%.1f'|format(metrics.len_synth.n50) }}</p>
+            <p><strong>Real mean:</strong> {{ '%.1f'|format(metrics.len_real.mean) }}</p>
+            <p><strong>Synth mean:</strong> {{ '%.1f'|format(metrics.len_synth.mean) }}</p>
+          </div>
+          <div class="validation-card">
+            <h3>Base Composition (A,C,G,T)</h3>
+            <p>Fractions of total bases (like <code>seqkit fx2tab -B</code>).</p>
+            <table id="baseTable">
+              <thead>
+                <tr>
+                  <th>Base</th>
+                  <th>Real</th>
+                  <th>Synth</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% set labels = ['A','C','G','T'] %}
+                {% for i in range(4) %}
+                  <tr>
+                    <td>{{ labels[i] }}</td>
+                    <td>{{ '%.4f'|format(metrics.base_freq_real[i]) }}</td>
+                    <td>{{ '%.4f'|format(metrics.base_freq_synth[i]) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <p style="margin-top:8px;"><strong>JS divergence (bases):</strong> {{ '%.4f'|format(metrics.js_bases) }} (target ≤ 0.05)</p>
+          </div>
+          <div class="validation-card">
+            <h3>2‑mer Spectrum</h3>
+            <p><strong>JS divergence (2‑mers):</strong> {{ '%.4f'|format(metrics.js_kmer) }} (target ≤ 0.08)</p>
+            <p class="helper">Low divergence means short motifs and dinucleotide biases in synthetic windows closely follow the real chromosome, which is what tools like seqkit and BioPython would highlight.</p>
+            <h4 style="margin-top:10px;">Sample sizes</h4>
+            <p><strong>Real windows:</strong> {{ metrics.n_real }}</p>
+            <p><strong>Synthetic windows:</strong> {{ metrics.n_synth }}</p>
+          </div>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>
+

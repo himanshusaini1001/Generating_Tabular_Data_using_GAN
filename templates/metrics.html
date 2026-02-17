@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Full Biological Metrics</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <style>
+    #dna_file, #upload_btn {
+      display: inline-block;
+      padding: 10px 15px;
+      background: linear-gradient(90deg, #4ffe60, #00fe94);
+      color: #050101;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+      margin-right: 100px;
+      margin-left: 100px;
+      text-align: center;
+
+    }
+  .btn-metrics {
+      display: inline-block;
+      padding: 10px 22px;
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      color: #fff;
+      font-weight: 600;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.3s;
+      margin-left: 400px;
+    }
+  .btn-metrics:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0, 255, 255, 0.5);}
+      .upload-container {
+        text-align: center;
+      }
+      .metrics-container {
+        max-width: 1600px !important;
+        overflow-x: auto;
+        width: 100%;
+      }
+      .metrics-container .dna3d-container,
+      .metrics-container .functional-metrics-box {
+        width: 100%;
+        min-width: 0;
+      }
+      #diHeatmapBox {
+        width: 100%;
+        overflow-x: auto;
+      }
+      .page-title {
+        color: aliceblue;
+      }
+      body.light-theme .page-title {
+        color: #0f1a2b;
+      }
+      body.light-theme .dna3d-container,
+      body.light-theme .functional-metrics-box {
+        background: rgba(15, 25, 50, 0.08);
+        color: #0f1a2b;
+      }
+      body.light-theme .dna3d-container h3,
+      body.light-theme .functional-metrics-box h3 {
+        color: #0f1a2b;
+      }
+      body.light-theme .dna3d-container p,
+      body.light-theme .functional-metrics-box p {
+        color: #0f1a2b;
+      }
+      body.light-theme .chart-side .chart-box,
+      body.light-theme .chart-side .gc-box {
+        background: rgba(15, 25, 50, 0.08);
+        color: #0f1a2b;
+      }
+      body.light-theme #diHeatmapBox {
+        background: rgba(15, 25, 50, 0.08);
+      }
+      body.light-theme #diHeatmapBox h3 {
+        color: #0f1a2b;
+      }
+  </style>
+</head>
+<body>
+  <div class="container metrics-container">
+    <div class="top-nav">
+      <div class="top-nav__brand">Stacked GAN</div>
+      <nav class="top-nav__links">
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav__actions">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+          <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+          <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+          <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+    <header>
+      <h1 class="page-title">📊 Full Biological Metrics</h1>
+      <p style="padding: 18px 80px 0;">Upload your DNA file (FASTA or CSV) to compute all metrics and visualize sequences.</p>
+    </header>
+
+    <section class="page-intro">
+      <p>
+        Benchmark every generator variant using GC spread, motif recovery, dinucleotide entropy,
+        and helix stability. Use this lab when you want auditable evidence that synthetic samples
+        respect chromosome 12 biology before releasing them to downstream teams.
+      </p>
+      <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+        <div style="padding: 14px; background: rgba(79,195,247,0.1); border-radius: 12px; border: 1px solid rgba(79,195,247,0.3);">
+          <h4 style="color: #4fc3f7; margin-bottom: 8px; font-size: 1rem;">🧬 GC Content Analysis</h4>
+          <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+            GC content (percentage of Guanine and Cytosine bases) is a critical metric. Human chromosomes typically 
+            have GC content between 35-60%. Deviations can indicate sequencing errors or non-biological artifacts.
+          </p>
+        </div>
+        <div style="padding: 14px; background: rgba(79,195,247,0.1); border-radius: 12px; border: 1px solid rgba(79,195,247,0.3);">
+          <h4 style="color: #4fc3f7; margin-bottom: 8px; font-size: 1rem;">🔍 Motif Detection</h4>
+          <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+            Functional motifs like CpG islands, transcription factor binding sites (TFBS), and repetitive elements 
+            are essential for gene regulation. Our analysis identifies these patterns to validate biological realism.
+          </p>
+        </div>
+        <div style="padding: 14px; background: rgba(79,195,247,0.1); border-radius: 12px; border: 1px solid rgba(79,195,247,0.3);">
+          <h4 style="color: #4fc3f7; margin-bottom: 8px; font-size: 1rem;">📊 K-mer Distribution</h4>
+          <p style="margin: 0; font-size: 0.9rem; line-height: 1.5;">
+            K-mers (short subsequences of length k) reveal sequence composition patterns. Comparing k-mer frequencies 
+            between real and synthetic data helps assess generation quality and biological authenticity.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="upload-container" style="padding: 5%;">
+      <input type="file" id="dna_file" accept=".fasta,.fa,.csv">
+      <button id="upload_btn">Upload & Analyze</button>
+    </section>
+
+    <!-- Base Composition moved next to 3D DNA -->
+
+    <!-- 3D DNA + Per-sequence ATGC bar -->
+    <section class="dna3d-container hidden">
+      <style>
+        .dna3d-flex { display: flex; gap: 24px; align-items: flex-start; }
+        #dna3d { flex: 1 1 auto; min-height: 380px; }
+        .chart-side { flex: 0 0 420px; display: flex; flex-direction: column; gap: 12px; }
+        .chart-side .chart-box { background: rgba(255,255,255,0.06); padding: 12px; height: 390px; width: 100%; border-radius: 10px; }
+        .chart-side .gc-box { background: rgba(255,255,255,0.06); padding: 12px; width: 100%; border-radius: 10px; color: #fff; }
+        #baseChart { width: 100% !important; height: 100% !important; display: block; }
+      </style>
+      <div class="dna3d-header">
+        <h3>3D DNA Helix</h3>
+        <select id="sequence_dropdown"></select>
+      </div>
+      <div class="dna3d-flex">
+        <div id="dna3d"></div>
+        <div class="chart-side">
+          <div class="gc-box">
+            <label id="gc_label">GC Content: 0%</label>
+            <progress id="gc_progress" value="0" max="100"></progress>
+          </div>
+          <div class="chart-box">
+            <canvas id="baseChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="chart-box" id="diHeatmapBox" style="height: 260px; overflow: hidden; margin-top: 20px;">
+        <h3 style="margin:0 0 8px 0;">Dinucleotide Heatmap</h3>
+        <div id="diHeatmap" style="width:100%; height: calc(100% - 28px);"></div>
+      </div>
+    </section>
+
+    <!-- Functional & Motif Metrics -->
+    <section class="functional-metrics-box hidden">
+      <h3>Motif & Functional Site Metrics</h3>
+      <p id="cpg_count_label">CpG Islands Count: 0</p>
+      <p id="tfbs_label">TFBS Count: 0</p>
+      <p id="repeats_label">Repeat Elements Count: 0</p>
+
+      <h3>Sequence Similarity / Conservation</h3>
+      <p id="kmer_label">k-mer Distribution (Top 5): </p>
+      <p id="conserved_label">Conserved Regions Count: 0</p>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='metrics.js') }}"></script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>

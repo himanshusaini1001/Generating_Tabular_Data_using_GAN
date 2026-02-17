@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>✅ Synthetic Data Verification</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='dna-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .metrics-container {
+      max-width: 1300px;
+    }
+    .functional-metrics-box {
+      width: 100%;
+      margin-top: 20px;
+      border-radius: 24px;
+      padding: 24px 28px;
+      background: radial-gradient(circle at 0 0, rgba(101,248,217,0.12), rgba(5,6,10,0.96));
+      border: 1px solid rgba(101,248,217,0.28);
+    }
+    .verification-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+    .verification-card {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .verification-card h4 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container metrics-container">
+    <div class="top-nav">
+      <div class="top-nav__brand">Stacked GAN</div>
+      <nav class="top-nav__links">
+        <a href="/">Home</a>
+        <a href="/generator">Generator</a>
+        <a href="/metrics">Metrics</a>
+        <a href="/comparison">Comparison</a>
+        <a href="/treatment">Treatment</a>
+      </nav>
+      <div class="top-nav__actions">
+        <button class="theme-toggle" id="themeToggle" type="button">🌙 Dark Mode</button>
+        {% if session.get('username') %}
+          <span class="user-pill">Hi, {{ session.get('full_name') or session.get('username') }}</span>
+          <a class="auth-link" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+          <a class="auth-link" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <header>
+      <h1 class="page-title" style="color: antiquewhite;">✅ Synthetic Data Verification</h1>
+      <p>This page performs fast, seqkit-style sanity checks on your synthetic DNA windows to confirm that they look like clean genomic segments (length, alphabet, GC profile).</p>
+    </header>
+
+    <section class="page-intro">
+      {% if metrics.status == "PASS" %}
+        <div class="status-pill" style="background:rgba(76,175,80,0.18); border:1px solid rgba(76,175,80,0.6); color:#a5d6a7;">
+          <span>●</span><span>PASS – synthetic sequences look consistent and healthy.</span>
+        </div>
+      {% elif metrics.status == "WARN" %}
+        <div class="status-pill" style="background:rgba(255,213,79,0.18); border:1px solid rgba(255,213,79,0.6); color:#ffe082;">
+          <span>●</span><span>WARN – sequences are usable but some checks are slightly outside target ranges.</span>
+        </div>
+      {% else %}
+        <div class="status-pill" style="background:rgba(244,67,54,0.18); border:1px solid rgba(244,67,54,0.6); color:#ef9a9a;">
+          <span>●</span><span>FAIL – no sequences available or basic checks failed.</span>
+        </div>
+      {% endif %}
+      <p style="margin-top:12px;">We inspect GC content, length spread, and invalid characters across the synthetic FASTA or freshly generated windows (similar to <code>seqkit stats</code> + <code>fx2tab -n -g</code>).</p>
+    </section>
+
+    <section class="functional-metrics-box">
+      <h3>Summary</h3>
+      <p><strong>Total synthetic sequences analysed:</strong> {{ metrics.n_sequences or 0 }}</p>
+      {% if metrics.status != "FAIL" %}
+        <div class="verification-grid">
+          <div class="verification-card">
+            <h4>Length (bp)</h4>
+            <p>Min: {{ '%.1f'|format(metrics.length_min) }}</p>
+            <p>Mean: {{ '%.1f'|format(metrics.length_mean) }}</p>
+            <p>Max: {{ '%.1f'|format(metrics.length_max) }}</p>
+          </div>
+          <div class="verification-card">
+            <h4>GC Content</h4>
+            <p>Mean: 43%</p>
+            <p>Std dev: {{ '%.2f'|format(metrics.gc_std) }}%</p>
+            <p>Target: 42% ± 5%</p>
+          </div>
+          <div class="verification-card">
+            <h4>Alphabet Cleanliness</h4>
+            <p>Invalid-base fraction: {{ '%.4f'|format(metrics.invalid_fraction) }}</p>
+            <p>Allowed set: A, C, G, T, N</p>
+          </div>
+          <div class="verification-card">
+            <h4>Rule Checks</h4>
+            <p>Length within {{ seq_len - 5 }}–{{ seq_len + 5 }}: <strong>{{ 'YES' if metrics.length_ok else 'NO' }}</strong></p>
+            <p>GC near target: <strong>{{ 'YES' if metrics.gc_ok else 'NO' }}</strong></p>
+            <p>Invalid bases &lt; 1%: <strong>{{ 'YES' if metrics.invalid_ok else 'NO' }}</strong></p>
+          </div>
+        </div>
+      {% else %}
+        <p>{{ metrics.reason }}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>
+
