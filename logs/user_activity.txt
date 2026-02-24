@@ -982,3 +982,11 @@
 2026-01-21 13:37:47 UTC | himanshu1001 | navigate | /metrics | GET request
 2026-01-21 13:38:15 UTC | himanshu1001 | navigate | /generator | GET request
 2026-01-21 13:38:49 UTC | himanshu1001 | navigate | /metrics | GET request
+2026-02-24 06:30:25 UTC | himanshu1001 | login_success | /login | User logged in
+2026-02-24 06:30:27 UTC | himanshu1001 | navigate | /comparison | GET request
+2026-02-24 06:30:28 UTC | himanshu1001 | navigate | /metrics_json | GET request
+2026-02-24 06:30:28 UTC | himanshu1001 | navigate | /gc_distribution_data | GET request
+2026-02-24 06:30:28 UTC | himanshu1001 | navigate | /embedding_pca_data | GET request
+2026-02-24 06:30:28 UTC | himanshu1001 | navigate | /correlation_heatmap_data | GET request
+2026-02-24 06:31:25 UTC | himanshu1001 | navigate | /correlation_heatmap_data | GET request
+2026-02-24 06:31:32 UTC | himanshu1001 | navigate | /losses_3d_data | GET request
