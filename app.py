@@ -18,6 +18,7 @@ from utils.user_manager import (
     register_user,
 )
 import compare_models
+import sys
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("APP_SECRET_KEY", "stacked-seqgan-dev-key")
@@ -31,6 +32,10 @@ SAMPLE_DATA_PATH = os.path.join(BASE_DIR, "data", "training.fasta")
 STATIC_METRICS_DIR = os.path.join(BASE_DIR, "static", "metrics")
 TRAIN_METRICS_CSV = os.path.join(STATIC_METRICS_DIR, "train_metrics.csv")
 SEQ_LEN = 70
+
+# Ensure old checkpoints referring to __main__.CharTokenizer can be unpickled
+sys.modules.setdefault("__main__", sys.modules[__name__])
+setattr(sys.modules["__main__"], "CharTokenizer", CharTokenizer)
 
 PUBLIC_ENDPOINTS = {"login", "register", "static", "logout", "index"}
 PHONE_PATTERN = re.compile(r"^\+91\d{10}$")
