@@ -21,3 +21,4 @@ umap-learn>=0.5.4
 
 # Optional (good to have for notebook experiments / logging)
 tqdm>=4.66.0
+

@@ -191,16 +191,20 @@ class GANBagging:
         
         print(f"✅ Saved {self.n_models} models to {base_path}/")
     
-    def load_all(self, base_path):
+    def load_all(self, base_path, map_location=None):
         """Load all models from checkpoints."""
+        # Determine safe default device if not provided
+        if map_location is None:
+            map_location = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
         for idx in range(self.n_models):
             path = f"{base_path}/bagging_model_{idx}.pt"
-            checkpoint = torch.load(path)
+            checkpoint = torch.load(path, map_location=map_location)
             
             self.models[idx].generator.load_state_dict(checkpoint['generator_state'])
             self.models[idx].discriminator.load_state_dict(checkpoint['discriminator_state'])
             self.models[idx].cond_encoder.load_state_dict(checkpoint['cond_encoder_state'])
             self.models[idx].tokenizer = checkpoint['tokenizer']
         
-        print(f"✅ Loaded {self.n_models} models from {base_path}/")
+        print(f"✅ Loaded {self.n_models} models from {base_path}/ using {map_location}")
 

@@ -44,7 +44,8 @@ if not os.path.exists(CHECKPOINT_PATH) and not USE_BAGGING:
     raise FileNotFoundError(f"No checkpoint found at {CHECKPOINT_PATH} or {BAGGING_PATH}")
 
 
-device = torch.device("cuda")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 
 if USE_BAGGING:
@@ -63,7 +64,7 @@ if USE_BAGGING:
         
         
         bagging = GANBagging(seq_len=SEQ_LEN, vocab_size=tokenizer.vocab_size, n_models=n_models, target_gc=0.42, device=device)
-        bagging.load_all(BAGGING_PATH)
+        bagging.load_all(BAGGING_PATH, map_location=device)
         
         
         for model in bagging.models:

@@ -53,13 +53,20 @@ def load_checkpoint_default():
             if len(bagging_files) > 0:
                 n_models = len(bagging_files)
                 
-                # Load first model to get tokenizer
-                first_checkpoint = torch.load(os.path.join(BAGGING_PATH, bagging_files[0]), weights_only=False)
+                # Load first model to get tokenizer (map to CPU if needed)
+                first_checkpoint = torch.load(
+                    os.path.join(BAGGING_PATH, bagging_files[0]),
+                    weights_only=False,
+                    map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+                )
                 tokenizer = first_checkpoint["tokenizer"]
                 
                 # Create bagging ensemble
                 bagging = GANBagging(seq_len=70, vocab_size=tokenizer.vocab_size, n_models=n_models, target_gc=0.42)
-                bagging.load_all(BAGGING_PATH)
+                bagging.load_all(
+                    BAGGING_PATH,
+                    map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+                )
                 
                 # Set tokenizer for all models
                 for model in bagging.models:
@@ -83,7 +90,11 @@ def load_checkpoint_default():
         return
     
     try:
-        checkpoint = torch.load(CHECKPOINT_PATH, weights_only=False)
+        checkpoint = torch.load(
+            CHECKPOINT_PATH,
+            weights_only=False,
+            map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+        )
         
         # Try loading as full GAN object
         if "gan" in checkpoint:
