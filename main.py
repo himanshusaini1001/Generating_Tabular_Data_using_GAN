@@ -251,7 +251,11 @@ def main():
         if args.checkpoint == '':
             raise ValueError("Please provide checkpoint with --checkpoint")
         print(f"Loading checkpoint from {args.checkpoint} ...")
-        checkpoint = torch.load(args.checkpoint, map_location=device)
+        checkpoint = torch.load(
+            args.checkpoint,
+            map_location=device,
+            weights_only=False,
+        )
         tokenizer = checkpoint["tokenizer"]
 
         # Initialize GAN structure and load weights

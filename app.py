@@ -59,7 +59,11 @@ if USE_BAGGING:
         print(f"   Found {n_models} bagging models")
         
         
-        first_checkpoint = torch.load(os.path.join(BAGGING_PATH, bagging_files[0]), map_location=device)
+        first_checkpoint = torch.load(
+            os.path.join(BAGGING_PATH, bagging_files[0]),
+            map_location=device,
+            weights_only=False,
+        )
         tokenizer = first_checkpoint["tokenizer"]
         
         
@@ -78,7 +82,11 @@ if USE_BAGGING:
 
 
 if not USE_BAGGING:
-    checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+    checkpoint = torch.load(
+        CHECKPOINT_PATH,
+        map_location=device,
+        weights_only=False,
+    )
     
     
     gan_loaded = False

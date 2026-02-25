@@ -990,3 +990,4 @@
 2026-02-24 06:30:28 UTC | himanshu1001 | navigate | /correlation_heatmap_data | GET request
 2026-02-24 06:31:25 UTC | himanshu1001 | navigate | /correlation_heatmap_data | GET request
 2026-02-24 06:31:32 UTC | himanshu1001 | navigate | /losses_3d_data | GET request
+2026-02-25 07:07:15 UTC | himanshu1001 | logout | /logout | User logged out

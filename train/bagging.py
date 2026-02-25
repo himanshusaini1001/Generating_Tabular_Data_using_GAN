@@ -199,7 +199,11 @@ class GANBagging:
         
         for idx in range(self.n_models):
             path = f"{base_path}/bagging_model_{idx}.pt"
-            checkpoint = torch.load(path, map_location=map_location)
+            checkpoint = torch.load(
+                path,
+                map_location=map_location,
+                weights_only=False,
+            )
             
             self.models[idx].generator.load_state_dict(checkpoint['generator_state'])
             self.models[idx].discriminator.load_state_dict(checkpoint['discriminator_state'])
