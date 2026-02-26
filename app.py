@@ -1,18 +1,14 @@
 #app.py
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 import os
+import threading
 import torch
 import pandas as pd
 import numpy as np
 from io import StringIO
 import re
 
-# Lazy imports (Render safe)
-StackedGAN = None
-compare_models = None
-GANBagging = None
-app = Flask(__name__)
-app.secret_key = os.environ.get("APP_SECRET_KEY", "stacked-seqgan-dev-key")
+from train.training import StackedGAN
 from utils.tokenizer import CharTokenizer
 from utils.user_manager import (
     authenticate_user,
@@ -22,95 +18,10 @@ from utils.user_manager import (
     log_user_action,
     register_user,
 )
+import compare_models
 
-import sys
-# -------------------------
-# Lazy Model Loading (Render Safe)
-# -------------------------
-
-gan = None
-bagging = None
-tokenizer = None
-USE_BAGGING = False
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-def load_models():
-    global gan, bagging, tokenizer, USE_BAGGING
-    global StackedGAN, compare_models, GANBagging
-
-    print("🔄 Loading models...")
-
-    if StackedGAN is None:
-        from train.training import StackedGAN as SG
-        StackedGAN = SG
-
-    if compare_models is None:
-        import compare_models as cm
-        compare_models = cm
-
-    try:
-        from train.bagging import GANBagging as GB
-        GANBagging = GB
-    except:
-        GANBagging = None
-
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    CHECKPOINT_PATH = os.path.join(BASE_DIR, "checkpoints", "stacked_epoch150.pt")
-    BAGGING_PATH = os.path.join(BASE_DIR, "checkpoints", "bagging")
-
-    USE_BAGGING = os.path.exists(BAGGING_PATH) and len(os.listdir(BAGGING_PATH)) > 0
-
-    if USE_BAGGING and GANBagging:
-        bagging_files = [f for f in os.listdir(BAGGING_PATH) if f.startswith("bagging_model_")]
-        if bagging_files:
-            first_checkpoint = torch.load(
-                os.path.join(BAGGING_PATH, bagging_files[0]),
-                map_location=device,
-                weights_only=False,
-            )
-            tokenizer = first_checkpoint["tokenizer"]
-
-            bagging = GANBagging(
-                seq_len=SEQ_LEN,
-                vocab_size=tokenizer.vocab_size,
-                n_models=len(bagging_files),
-                target_gc=0.42,
-                device=device
-            )
-            bagging.load_all(BAGGING_PATH, map_location=device)
-
-            print("✅ Bagging models loaded")
-            return
-
-    # Single model fallback
-    if os.path.exists(CHECKPOINT_PATH):
-        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device, weights_only=False)
-
-        tokenizer = checkpoint["tokenizer"]
-
-        gan = StackedGAN(
-            seq_len=SEQ_LEN,
-            vocab_size=tokenizer.vocab_size,
-            target_gc=0.42,
-            device=device
-        )
-
-        gan.generator.load_state_dict(checkpoint["generator_state"], strict=False)
-        gan.discriminator.load_state_dict(checkpoint["discriminator_state"], strict=False)
-        gan.cond_encoder.load_state_dict(checkpoint["cond_encoder_state"], strict=False)
-
-        gan.generator.to(device)
-        gan.generator.eval()
-
-        print("✅ Single model loaded")
-
-
-@app.before_request
-def ensure_models_loaded():
-    global gan
-    if gan is None and bagging is None:
-        load_models()
+app = Flask(__name__)
+app.secret_key = os.environ.get("APP_SECRET_KEY", "stacked-seqgan-dev-key")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKPOINT_PATH = os.path.join(BASE_DIR, "checkpoints", "stacked_epoch150.pt")
@@ -122,121 +33,149 @@ STATIC_METRICS_DIR = os.path.join(BASE_DIR, "static", "metrics")
 TRAIN_METRICS_CSV = os.path.join(STATIC_METRICS_DIR, "train_metrics.csv")
 SEQ_LEN = 70
 
-# Ensure old checkpoints referring to __main__.CharTokenizer can be unpickled
-sys.modules.setdefault("__main__", sys.modules[__name__])
-setattr(sys.modules["__main__"], "CharTokenizer", CharTokenizer)
-
 PUBLIC_ENDPOINTS = {"login", "register", "static", "logout", "index"}
 PHONE_PATTERN = re.compile(r"^\+91\d{10}$")
 PASSWORD_PATTERN = re.compile(
     r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$"
 )
 
-
-USE_BAGGING = os.path.exists(BAGGING_PATH) and len(os.listdir(BAGGING_PATH)) > 0
-if not os.path.exists(CHECKPOINT_PATH) and not USE_BAGGING:
-    raise FileNotFoundError(f"No checkpoint found at {CHECKPOINT_PATH} or {BAGGING_PATH}")
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
-
-
-if USE_BAGGING:
-    print("🎲 Loading BAGGING ensemble models...")
-    from train.bagging import GANBagging
-    
-    
-    bagging_files = [f for f in os.listdir(BAGGING_PATH) if f.startswith('bagging_model_')]
-    if len(bagging_files) > 0:
-        n_models = len(bagging_files)
-        print(f"   Found {n_models} bagging models")
-        
-        
-        first_checkpoint = torch.load(
-            os.path.join(BAGGING_PATH, bagging_files[0]),
-            map_location=device,
-            weights_only=False,
-        )
-        tokenizer = first_checkpoint["tokenizer"]
-        
-        
-        bagging = GANBagging(seq_len=SEQ_LEN, vocab_size=tokenizer.vocab_size, n_models=n_models, target_gc=0.42, device=device)
-        bagging.load_all(BAGGING_PATH, map_location=device)
-        
-        
-        for model in bagging.models:
-            model.tokenizer = tokenizer
-            
-        print(f"✅ Loaded bagging ensemble with {n_models} models")
-        USE_BAGGING = True
-    else:
-        USE_BAGGING = False
-        print("⚠️ Bagging directory empty, falling back to single model")
+device = None
+gan = None
+bagging = None
+tokenizer = None
+USE_BAGGING = False
+_MODEL_INITIALIZED = False
+_MODEL_INIT_ERROR = None
+_MODEL_LOCK = threading.Lock()
 
 
-if not USE_BAGGING:
-    checkpoint = torch.load(
-        CHECKPOINT_PATH,
-        map_location=device,
-        weights_only=False,
-    )
-    
-    
-    gan_loaded = False
-    if "gan" in checkpoint:
+def ensure_model_initialized():
+    global device, gan, bagging, tokenizer, USE_BAGGING
+    global _MODEL_INITIALIZED, _MODEL_INIT_ERROR
+
+    if _MODEL_INITIALIZED:
+        if _MODEL_INIT_ERROR is not None:
+            raise _MODEL_INIT_ERROR
+        return
+
+    with _MODEL_LOCK:
+        if _MODEL_INITIALIZED:
+            if _MODEL_INIT_ERROR is not None:
+                raise _MODEL_INIT_ERROR
+            return
+
         try:
-            gan: StackedGAN = checkpoint["gan"]
-            tokenizer: CharTokenizer = checkpoint["tokenizer"]
+            if torch.cuda.is_available():
+                device_local = torch.device("cuda")
+            else:
+                device_local = torch.device("cpu")
+        except Exception:
+            device_local = torch.device("cpu")
 
-            # Move submodules to device
-            gan.generator.to(device)
-            gan.discriminator.to(device)
-            gan.cond_encoder.to(device)
-            gan.generator.eval()  # Set to eval mode for inference
-            print("✅ Loaded GAN object from checkpoint")
-            gan_loaded = True
-            USE_BAGGING = False  # Make sure this is set
-        except Exception as e:
-            print(f"⚠️ Could not load GAN object: {e}")
-            print("   Attempting to reinitialize with state dicts...")
+        use_bagging = os.path.isdir(BAGGING_PATH) and any(
+            f.startswith("bagging_model_") for f in os.listdir(BAGGING_PATH)
+        ) if os.path.exists(BAGGING_PATH) else False
 
-    if not gan_loaded:
-        # Initialize GAN and load weights manually
-        tokenizer: CharTokenizer = checkpoint["tokenizer"]
-        gan = StackedGAN(seq_len=SEQ_LEN, vocab_size=tokenizer.vocab_size, target_gc=0.42, device=device)
-        gan.tokenizer = tokenizer
-        
-        # Load state dicts with error handling for model architecture mismatches
-        try:
-            print("🔧 Attempting to load generator weights...")
-            gan.generator.load_state_dict(checkpoint["generator_state"], strict=False)
-            print("✅ Generator weights loaded")
-        except Exception as e:
-            print(f"⚠️ Warning: Could not load generator weights: {e}")
-            print("   Using random initialization instead")
-        
-        try:
-            print("🔧 Attempting to load discriminator weights...")
-            gan.discriminator.load_state_dict(checkpoint["discriminator_state"], strict=False)
-            print("✅ Discriminator weights loaded")
-        except Exception as e:
-            print(f"⚠️ Warning: Could not load discriminator weights: {e}")
-            print("   Using random initialization instead")
-        
-        try:
-            print("🔧 Attempting to load condition encoder weights...")
-            gan.cond_encoder.load_state_dict(checkpoint["cond_encoder_state"])
-            print("✅ Condition encoder weights loaded")
-        except Exception as e:
-            print(f"⚠️ Warning: Could not load condition encoder weights: {e}")
-            print("   Using random initialization instead")
+        if not os.path.exists(CHECKPOINT_PATH) and not use_bagging:
+            _MODEL_INIT_ERROR = FileNotFoundError(
+                f"No checkpoint found at {CHECKPOINT_PATH} or {BAGGING_PATH}"
+            )
+            _MODEL_INITIALIZED = True
+            raise _MODEL_INIT_ERROR
 
-        # Move submodules to device
-        gan.generator.to(device)
-        gan.discriminator.to(device)
-        gan.cond_encoder.to(device)
-        gan.generator.eval()  # Set to eval mode for inference
+        local_gan = None
+        local_bagging = None
+        local_tokenizer = None
+        local_use_bagging = False
+
+        if use_bagging:
+            from train.bagging import GANBagging
+
+            bagging_files = [
+                f for f in os.listdir(BAGGING_PATH) if f.startswith("bagging_model_")
+            ]
+            if bagging_files:
+                n_models = len(bagging_files)
+                first_checkpoint = torch.load(
+                    os.path.join(BAGGING_PATH, bagging_files[0]),
+                    map_location=device_local,
+                )
+                local_tokenizer = first_checkpoint["tokenizer"]
+                local_bagging = GANBagging(
+                    seq_len=SEQ_LEN,
+                    vocab_size=local_tokenizer.vocab_size,
+                    n_models=n_models,
+                    target_gc=0.42,
+                    device=device_local,
+                )
+                local_bagging.load_all(BAGGING_PATH)
+                for model in local_bagging.models:
+                    model.tokenizer = local_tokenizer
+                local_use_bagging = True
+            else:
+                use_bagging = False
+
+        if not use_bagging:
+            checkpoint = torch.load(CHECKPOINT_PATH, map_location=device_local)
+
+            gan_loaded = False
+            if "gan" in checkpoint:
+                try:
+                    local_gan = checkpoint["gan"]
+                    local_tokenizer = checkpoint["tokenizer"]
+
+                    local_gan.generator.to(device_local)
+                    local_gan.discriminator.to(device_local)
+                    local_gan.cond_encoder.to(device_local)
+                    local_gan.generator.eval()
+                    gan_loaded = True
+                except Exception:
+                    gan_loaded = False
+
+            if not gan_loaded:
+                local_tokenizer = checkpoint["tokenizer"]
+                local_gan = StackedGAN(
+                    seq_len=SEQ_LEN,
+                    vocab_size=local_tokenizer.vocab_size,
+                    target_gc=0.42,
+                    device=device_local,
+                )
+                local_gan.tokenizer = local_tokenizer
+
+                try:
+                    local_gan.generator.load_state_dict(
+                        checkpoint["generator_state"], strict=False
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    local_gan.discriminator.load_state_dict(
+                        checkpoint["discriminator_state"], strict=False
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    local_gan.cond_encoder.load_state_dict(
+                        checkpoint["cond_encoder_state"]
+                    )
+                except Exception:
+                    pass
+
+                local_gan.generator.to(device_local)
+                local_gan.discriminator.to(device_local)
+                local_gan.cond_encoder.to(device_local)
+                local_gan.generator.eval()
+
+            local_use_bagging = False
+
+        device = device_local
+        gan = local_gan
+        bagging = local_bagging
+        tokenizer = local_tokenizer
+        USE_BAGGING = local_use_bagging
+        _MODEL_INITIALIZED = True
 
 
 # -------------------------
@@ -257,6 +196,10 @@ def enforce_login_and_log():
         return jsonify({"error": "Authentication required"}), 401
 
     log_user_action(username, "navigate", request.path, f"{request.method} request")
+    try:
+        ensure_model_initialized()
+    except Exception as exc:
+        return jsonify({"error": f"Model initialization failed: {str(exc)}"}), 500
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -373,6 +316,7 @@ def comparison_page():
     if os.path.exists(CSV_PATH):
         df = pd.read_csv(CSV_PATH)
     else:
+        ensure_model_initialized()
         dataset, _ = compare_models.load_dataset(GENERATED_DATA_PATH, SEQ_LEN)
         compare_models.evaluate_models(dataset, tokenizer, SEQ_LEN)
         df = pd.read_csv(CSV_PATH)
@@ -417,6 +361,7 @@ def metrics_json():
         return jsonify(results)
 
     # If CSV missing, compute metrics from sample data
+    ensure_model_initialized()
     dataset, _ = compare_models.load_dataset(SAMPLE_DATA_PATH, SEQ_LEN)
     results = compare_models.evaluate_models(dataset, tokenizer, SEQ_LEN)
     return jsonify(results)
@@ -514,6 +459,7 @@ def sequence_heatmap_data():
         sequences = []
         if model == 'StackedGAN':
             # Use actual StackedGAN to generate sequences
+            ensure_model_initialized()
             sequences_int = gan.generate(n_samples=num_sequences)
             sequences = [tokenizer.decode(seq) for seq in sequences_int]
         else:
@@ -560,9 +506,15 @@ def sequence_heatmap_data():
 def _generate_sequences_for_model(model_name: str, num_sequences: int):
     """Helper to generate sequences (list[str]) for a given model name."""
     nucleotides = ['A', 'C', 'G', 'T']
-    if model_name == 'StackedGAN' and 'gan' in globals():
-        sequences_int = gan.generate(n_samples=num_sequences)
-        return [tokenizer.decode(seq) for seq in sequences_int]
+    if model_name == 'StackedGAN':
+        try:
+            ensure_model_initialized()
+        except Exception:
+            sequences_int = None
+        else:
+            sequences_int = gan.generate(n_samples=num_sequences) if gan is not None else None
+        if sequences_int is not None and tokenizer is not None:
+            return [tokenizer.decode(seq) for seq in sequences_int]
     # Mock distributions for baselines to visualize differences
     seqs = []
     for _ in range(num_sequences):
@@ -859,11 +811,7 @@ def correlation_heatmap_data():
             real_ds, real_tok = compare_models.load_dataset(SAMPLE_DATA_PATH, SEQ_LEN)
             base_real_strs = [real_tok.decode(seq.cpu().numpy().tolist() if hasattr(seq, 'cpu') else seq) for seq in real_ds[:1000]]
         n_samples = min(1000, len(base_real_strs))
-        if 'gan' in globals():
-            fake_int = gan.generate(n_samples=n_samples)
-            fake_strs = [tokenizer.decode(seq) for seq in fake_int]
-        else:
-            fake_strs = _generate_sequences_for_model('StackedGAN', n_samples)
+        fake_strs = _generate_sequences_for_model('StackedGAN', n_samples)
         per_model['StackedGAN'] = np.array([seq_vec_k(s) for s in fake_strs])
     # WGAN & CTGAN (mock/generated)
     for baseline in ['WGAN', 'CTGAN']:
@@ -1261,12 +1209,13 @@ def generate():
         num_sequences = int(request.form.get("num_sequences", 10))
         username = session.get("username", "anonymous")
         
+        ensure_model_initialized()
         # Use bagging ensemble if available, else use single model
-        if USE_BAGGING and 'bagging' in globals():
+        if USE_BAGGING and bagging is not None:
             sequences_int = bagging.generate_ensemble(n_samples=num_sequences, method='average')
             model_type = "bagging_ensemble"
             n_models = len(bagging.models)
-        elif 'gan' in globals():
+        elif gan is not None:
             sequences_int = gan.generate(n_samples=num_sequences)
             model_type = "single_model"
             n_models = 1
@@ -1306,3 +1255,10 @@ def generate():
         log_user_action(session.get("username", "anonymous"), "generate_error", "/generate", str(e))
         return jsonify({"error": str(e)}), 500
 
+
+# -------------------------
+# Run Flask
+# -------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False)
