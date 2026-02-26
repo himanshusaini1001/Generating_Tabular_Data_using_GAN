@@ -20,6 +20,8 @@ from utils.user_manager import (
 )
 import compare_models
 
+torch.serialization.add_safe_globals([CharTokenizer])
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("APP_SECRET_KEY", "stacked-seqgan-dev-key")
 
@@ -99,6 +101,7 @@ def ensure_model_initialized():
                 first_checkpoint = torch.load(
                     os.path.join(BAGGING_PATH, bagging_files[0]),
                     map_location=device_local,
+                    weights_only=False,
                 )
                 local_tokenizer = first_checkpoint["tokenizer"]
                 local_bagging = GANBagging(
@@ -116,7 +119,11 @@ def ensure_model_initialized():
                 use_bagging = False
 
         if not use_bagging:
-            checkpoint = torch.load(CHECKPOINT_PATH, map_location=device_local)
+            checkpoint = torch.load(
+                CHECKPOINT_PATH,
+                map_location=device_local,
+                weights_only=False,
+            )
 
             gan_loaded = False
             if "gan" in checkpoint:
