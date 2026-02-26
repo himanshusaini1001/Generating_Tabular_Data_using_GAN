@@ -7,7 +7,12 @@ import numpy as np
 from io import StringIO
 import re
 
-from train.training import StackedGAN
+# Lazy imports (Render safe)
+StackedGAN = None
+compare_models = None
+GANBagging = None
+app = Flask(__name__)
+app.secret_key = os.environ.get("APP_SECRET_KEY", "stacked-seqgan-dev-key")
 from utils.tokenizer import CharTokenizer
 from utils.user_manager import (
     authenticate_user,
@@ -17,11 +22,95 @@ from utils.user_manager import (
     log_user_action,
     register_user,
 )
-import compare_models
-import sys
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("APP_SECRET_KEY", "stacked-seqgan-dev-key")
+import sys
+# -------------------------
+# Lazy Model Loading (Render Safe)
+# -------------------------
+
+gan = None
+bagging = None
+tokenizer = None
+USE_BAGGING = False
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def load_models():
+    global gan, bagging, tokenizer, USE_BAGGING
+    global StackedGAN, compare_models, GANBagging
+
+    print("🔄 Loading models...")
+
+    if StackedGAN is None:
+        from train.training import StackedGAN as SG
+        StackedGAN = SG
+
+    if compare_models is None:
+        import compare_models as cm
+        compare_models = cm
+
+    try:
+        from train.bagging import GANBagging as GB
+        GANBagging = GB
+    except:
+        GANBagging = None
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    CHECKPOINT_PATH = os.path.join(BASE_DIR, "checkpoints", "stacked_epoch150.pt")
+    BAGGING_PATH = os.path.join(BASE_DIR, "checkpoints", "bagging")
+
+    USE_BAGGING = os.path.exists(BAGGING_PATH) and len(os.listdir(BAGGING_PATH)) > 0
+
+    if USE_BAGGING and GANBagging:
+        bagging_files = [f for f in os.listdir(BAGGING_PATH) if f.startswith("bagging_model_")]
+        if bagging_files:
+            first_checkpoint = torch.load(
+                os.path.join(BAGGING_PATH, bagging_files[0]),
+                map_location=device,
+                weights_only=False,
+            )
+            tokenizer = first_checkpoint["tokenizer"]
+
+            bagging = GANBagging(
+                seq_len=SEQ_LEN,
+                vocab_size=tokenizer.vocab_size,
+                n_models=len(bagging_files),
+                target_gc=0.42,
+                device=device
+            )
+            bagging.load_all(BAGGING_PATH, map_location=device)
+
+            print("✅ Bagging models loaded")
+            return
+
+    # Single model fallback
+    if os.path.exists(CHECKPOINT_PATH):
+        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device, weights_only=False)
+
+        tokenizer = checkpoint["tokenizer"]
+
+        gan = StackedGAN(
+            seq_len=SEQ_LEN,
+            vocab_size=tokenizer.vocab_size,
+            target_gc=0.42,
+            device=device
+        )
+
+        gan.generator.load_state_dict(checkpoint["generator_state"], strict=False)
+        gan.discriminator.load_state_dict(checkpoint["discriminator_state"], strict=False)
+        gan.cond_encoder.load_state_dict(checkpoint["cond_encoder_state"], strict=False)
+
+        gan.generator.to(device)
+        gan.generator.eval()
+
+        print("✅ Single model loaded")
+
+
+@app.before_request
+def ensure_models_loaded():
+    global gan
+    if gan is None and bagging is None:
+        load_models()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CHECKPOINT_PATH = os.path.join(BASE_DIR, "checkpoints", "stacked_epoch150.pt")
@@ -1217,12 +1306,3 @@ def generate():
         log_user_action(session.get("username", "anonymous"), "generate_error", "/generate", str(e))
         return jsonify({"error": str(e)}), 500
 
-
-# -------------------------
-# Run Flask
-# -------------------------
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "App is running"
