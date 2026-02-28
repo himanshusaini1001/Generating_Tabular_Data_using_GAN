@@ -1,6 +1,7 @@
 #app.py
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 import os
+import sys
 import threading
 import torch
 import pandas as pd
@@ -20,6 +21,9 @@ from utils.user_manager import (
 )
 import compare_models
 
+# Ensure checkpoints that reference __main__.CharTokenizer can be unpickled safely
+sys.modules.setdefault("__main__", sys.modules.get("__main__", sys.modules[__name__]))
+setattr(sys.modules["__main__"], "CharTokenizer", CharTokenizer)
 torch.serialization.add_safe_globals([CharTokenizer])
 
 app = Flask(__name__)
